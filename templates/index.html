@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% if role == 'advisor' %}Claris Advisor Tool{% else %}Claris Client Portal{% endif %} — SkyView Investment Advisors LLC</title>
+
+  <!-- Fonts: Cormorant Garamond (serif, matching site) + Inter (body) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+
+  <!-- Markdown rendering -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+
+  <style>
+    /* ── Design tokens (matched to skyviewadv.com exactly) ── */
+    :root {
+      --navy-deep:   #0d1e33;   /* very dark navy (OUR STORY bg)          */
+      --navy:        #132b49;   /* primary navy                            */
+      --navy-mid:    #1a3a5c;   /* mid navy                                */
+      --navy-light:  #566c88;   /* muted navy                              */
+      --orange:      #fe6e00;   /* SkyView brand orange                    */
+      --orange-dim:  #d95e00;
+      --white:       #ffffff;
+      --offwhite:    #f5f6f8;
+      --border:      #e2e8f0;
+      --text:        #1a2533;
+      --text-mid:    #4a5568;
+      --text-muted:  #8898aa;
+      --serif:       'Cormorant Garamond', Georgia, serif;
+      --sans:        'Inter', system-ui, sans-serif;
+      --radius:      8px;
+      --shadow:      0 2px 12px rgba(13,30,51,.10);
+      --shadow-lg:   0 8px 32px rgba(13,30,51,.16);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: var(--sans); background: var(--offwhite); color: var(--text); overflow: hidden; }
+
+    /* ══ LAYOUT ══════════════════════════════════════════════════════════ */
+    .shell        { display: flex; height: 100vh; flex-direction: column; }
+    .body         { display: flex; flex: 1; overflow: hidden; }
+    .main         { display: flex; flex-direction: column; flex: 1; overflow: hidden; background: var(--offwhite); }
+    .sidebar      { width: 300px; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
+
+    /* ══ TOPBAR ══════════════════════════════════════════════════════════ */
+    .topbar {
+      height: 62px;
+      background: var(--navy-deep);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      flex-shrink: 0;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      z-index: 20;
+    }
+    .topbar-left  { display: flex; align-items: center; gap: 16px; }
+
+    /* Real SkyView white logo from site */
+    .site-logo    { height: 28px; object-fit: contain; }
+
+    .divider-v    { width: 1px; height: 28px; background: rgba(255,255,255,.15); }
+    .topbar-sub   { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,.45); font-weight: 500; }
+
+    .topbar-right { display: flex; align-items: center; gap: 10px; }
+    .pill         { display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); border-radius: 20px; padding: 5px 12px; font-size: 11px; color: rgba(255,255,255,.6); letter-spacing: .3px; }
+    .pill-dot     { width: 6px; height: 6px; background: #4ade80; border-radius: 50%; animation: blink 2.4s ease-in-out infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    .btn-top {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,.18);
+      color: rgba(255,255,255,.65);
+      border-radius: 6px;
+      padding: 6px 13px;
+      font-size: 11.5px;
+      letter-spacing: .3px;
+      cursor: pointer;
+      font-family: var(--sans);
+      transition: all .16s;
+    }
+    .btn-top:hover { background: rgba(255,255,255,.09); color: var(--white); }
+
+    /* ══ PROFILE + MODE STRIP ════════════════════════════════════════════ */
+    .controls-strip {
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+      padding: 9px 24px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-shrink: 0;
+    }
+    .ctrl-group   { display: flex; align-items: center; gap: 7px; }
+    .ctrl-label   { font-size: 10px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-muted); white-space: nowrap; }
+    .ctrl-sep     { width: 1px; height: 20px; background: var(--border); }
+
+    .seg-btn {
+      background: var(--offwhite);
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 12px;
+      font-size: 11.5px;
+      font-family: var(--sans);
+      color: var(--text-mid);
+      cursor: pointer;
+      transition: all .16s;
+      font-weight: 500;
+      letter-spacing: .2px;
+    }
+    .seg-btn:hover        { border-color: var(--navy-light); color: var(--navy); }
+    .seg-btn.active       { background: var(--navy-deep); color: var(--white); border-color: var(--navy-deep); }
+    .seg-btn.mode.active  { background: var(--orange); border-color: var(--orange); color: var(--white); }
+
+    /* ══ MESSAGES ════════════════════════════════════════════════════════ */
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 28px 28px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      scroll-behavior: smooth;
+    }
+    #messages::-webkit-scrollbar { width: 4px; }
+    #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    .disclaimer {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-left: 3px solid #f59e0b;
+      border-radius: var(--radius);
+      padding: 10px 16px;
+      font-size: 12px;
+      color: #78350f;
+      line-height: 1.55;
+      margin-bottom: 24px;
+    }
+
+    /* Message rows */
+    .msg-row {
+      display: flex;
+      gap: 0;
+      margin-bottom: 20px;
+    }
+    .msg-row.user { flex-direction: row-reverse; }
+
+    /* Bot mark (the SkyView 'S' monogram — clean, not cartoon) */
+    .msg-mark {
+      width: 32px;
+      flex-shrink: 0;
+      margin-top: 2px;
+      margin-right: 14px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+    }
+    .msg-row.user .msg-mark { margin-right: 0; margin-left: 14px; }
+
+    .mark-inner {
+      width: 28px;
+      height: 28px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .mark-inner.bot  { background: var(--navy-deep); }
+    .mark-inner.user { background: var(--orange); }
+    .mark-inner img  { width: 16px; height: 16px; object-fit: contain; filter: brightness(0) invert(1); }
+    .mark-inner span { font-family: var(--serif); font-size: 13px; font-weight: 700; color: var(--white); letter-spacing: .5px; }
+
+    /* Bubble content */
+    .msg-body { flex: 1; max-width: 78%; }
+    .msg-row.user .msg-body { display: flex; flex-direction: column; align-items: flex-end; }
+
+    .bubble {
+      padding: 14px 18px;
+      border-radius: 10px;
+      font-size: 13.5px;
+      line-height: 1.7;
+      word-break: break-word;
+      display: inline-block;
+      width: 100%;
+    }
+    .msg-row.bot  .bubble {
+      background: var(--white);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-top-left-radius: 3px;
+      box-shadow: var(--shadow);
+    }
+    .msg-row.user .bubble {
+      background: var(--navy-deep);
+      color: rgba(255,255,255,.92);
+      border-top-right-radius: 3px;
+      display: inline-block;
+      width: auto;
+      max-width: 100%;
+    }
+
+    /* Markdown inside bot bubbles */
+    .bubble h1,.bubble h2,.bubble h3 {
+      font-family: var(--serif);
+      color: var(--navy);
+      margin: 14px 0 6px;
+      font-weight: 600;
+      letter-spacing: .3px;
+    }
+    .bubble h1 { font-size: 18px; }
+    .bubble h2 { font-size: 16px; border-bottom: 1px solid var(--border); padding-bottom: 5px; }
+    .bubble h3 { font-size: 14px; }
+    .bubble p  { margin-bottom: 10px; }
+    .bubble p:last-child { margin-bottom: 0; }
+    .bubble ul,.bubble ol { padding-left: 20px; margin-bottom: 10px; }
+    .bubble li { margin-bottom: 4px; }
+    .bubble strong { font-weight: 600; color: var(--navy); }
+    .msg-row.user .bubble strong { color: rgba(255,255,255,.95); }
+    .bubble em { font-style: italic; color: var(--text-mid); }
+    .bubble code {
+      background: var(--offwhite);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 12px;
+      font-family: 'Courier New', monospace;
+      color: var(--navy);
+    }
+    .bubble pre {
+      background: var(--navy-deep);
+      border-radius: 6px;
+      padding: 12px 14px;
+      overflow-x: auto;
+      margin: 10px 0;
+    }
+    .bubble pre code {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,.88);
+      padding: 0;
+      font-size: 12px;
+    }
+    .bubble table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 12px 0;
+      font-size: 13px;
+    }
+    .bubble th {
+      background: var(--navy-deep);
+      color: var(--white);
+      padding: 7px 12px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 11.5px;
+      letter-spacing: .4px;
+      text-transform: uppercase;
+    }
+    .bubble td {
+      padding: 7px 12px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+    .bubble tr:nth-child(even) td { background: var(--offwhite); }
+    .bubble blockquote {
+      border-left: 3px solid var(--orange);
+      padding: 8px 14px;
+      color: var(--text-mid);
+      background: var(--offwhite);
+      border-radius: 0 6px 6px 0;
+      margin: 10px 0;
+      font-style: italic;
+    }
+    .bubble hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+
+    .msg-meta {
+      font-size: 10.5px;
+      color: var(--text-muted);
+      margin-top: 5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 2px;
+    }
+    .msg-row.user .msg-meta { justify-content: flex-end; }
+    .tool-tag {
+      background: var(--offwhite);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 7px;
+      font-size: 10px;
+      color: var(--navy-light);
+      font-weight: 500;
+    }
+
+    /* Typing indicator */
+    .typing-wrap .bubble { padding: 14px 18px; }
+    .typing { display: flex; gap: 5px; align-items: center; }
+    .typing span {
+      width: 6px; height: 6px;
+      background: var(--navy-light);
+      border-radius: 50%;
+      animation: bob 1.3s ease-in-out infinite;
+    }
+    .typing span:nth-child(2) { animation-delay: .18s; }
+    .typing span:nth-child(3) { animation-delay: .36s; }
+    @keyframes bob { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+
+    /* ══ FILE ATTACHMENT CHIPS ═══════════════════════════════════════════ */
+    #attach-preview {
+      display: none;
+      flex-wrap: wrap;
+      gap: 7px;
+      padding: 10px 24px 0;
+      background: var(--white);
+    }
+    .attach-chip {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: var(--offwhite);
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 12px;
+      color: var(--text-mid);
+      font-weight: 500;
+      max-width: 220px;
+    }
+    .attach-chip .chip-icon { font-size: 14px; flex-shrink: 0; }
+    .attach-chip .chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .attach-chip .chip-remove {
+      margin-left: 4px;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 13px;
+      line-height: 1;
+      flex-shrink: 0;
+      transition: color .14s;
+    }
+    .attach-chip .chip-remove:hover { color: #e53e3e; }
+
+    /* ══ SUGGESTIONS ═════════════════════════════════════════════════════ */
+    #suggestions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      padding: 8px 24px 10px;
+      background: var(--white);
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .chip {
+      background: var(--offwhite);
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 13px;
+      font-size: 12px;
+      color: var(--text-mid);
+      cursor: pointer;
+      transition: all .15s;
+      font-weight: 500;
+    }
+    .chip:hover { background: var(--navy-deep); color: var(--white); border-color: var(--navy-deep); }
+
+    /* ══ INPUT AREA ══════════════════════════════════════════════════════ */
+    .input-area {
+      background: var(--white);
+      border-top: 1px solid var(--border);
+      padding: 14px 24px 18px;
+      flex-shrink: 0;
+    }
+    .input-row { display: flex; gap: 8px; align-items: flex-end; }
+
+    /* Hidden actual file input */
+    #file-input { display: none; }
+
+    /* Paperclip button */
+    .btn-attach {
+      width: 42px; height: 42px;
+      background: var(--offwhite);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      color: var(--text-mid);
+      font-size: 17px;
+      transition: all .15s;
+      flex-shrink: 0;
+    }
+    .btn-attach:hover { background: var(--navy-deep); color: var(--white); border-color: var(--navy-deep); }
+    .btn-attach.has-files { background: var(--navy-deep); color: var(--white); border-color: var(--navy-deep); }
+
+    #user-input {
+      flex: 1;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 11px 14px;
+      font-size: 13.5px;
+      resize: none;
+      outline: none;
+      min-height: 42px;
+      max-height: 140px;
+      transition: border-color .16s;
+      font-family: var(--sans);
+      color: var(--text);
+      background: var(--offwhite);
+      line-height: 1.55;
+    }
+    #user-input:focus { border-color: var(--navy-mid); background: var(--white); }
+    #user-input::placeholder { color: var(--text-muted); }
+
+    #send-btn {
+      width: 42px; height: 42px;
+      background: var(--orange);
+      color: var(--white);
+      border: none;
+      border-radius: var(--radius);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .15s, transform .1s;
+      flex-shrink: 0;
+    }
+    #send-btn:hover:not(:disabled) { background: var(--orange-dim); transform: scale(1.04); }
+    #send-btn:disabled             { opacity: .4; cursor: not-allowed; }
+
+    .input-hint {
+      font-size: 10.5px;
+      color: var(--text-muted);
+      margin-top: 7px;
+      text-align: center;
+      letter-spacing: .2px;
+    }
+    .file-types-hint {
+      font-size: 10.5px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      text-align: center;
+    }
+
+    /* ══ SIDEBAR ═════════════════════════════════════════════════════════ */
+
+    /* Top panel: banner photo with overlay */
+    .sidebar-hero {
+      position: relative;
+      height: 170px;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+    .sidebar-hero img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      filter: brightness(.55);
+    }
+    .sidebar-hero-overlay {
+      position: absolute;
+      inset: 0;
+      padding: 20px 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      background: linear-gradient(to top, rgba(13,30,51,.9) 0%, transparent 60%);
+    }
+    .sidebar-hero-overlay h2 {
+      font-family: var(--serif);
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--white);
+      letter-spacing: .8px;
+      line-height: 1.2;
+      text-transform: uppercase;
+    }
+    .sidebar-hero-overlay p {
+      font-size: 11px;
+      color: var(--orange);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-top: 4px;
+      font-weight: 500;
+    }
+
+    /* Sidebar body */
+    .sidebar-body {
+      background: var(--navy-deep);
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .sidebar-body::-webkit-scrollbar { width: 3px; }
+    .sidebar-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); }
+
+    /* Stats grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: rgba(255,255,255,.06);
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .stat {
+      background: var(--navy-deep);
+      padding: 14px 16px;
+    }
+    .stat-label { font-size: 9.5px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: rgba(255,255,255,.35); }
+    .stat-val   { font-family: var(--serif); font-size: 20px; color: var(--white); font-weight: 600; margin-top: 3px; line-height: 1; }
+    .stat-sub   { font-size: 10px; color: rgba(255,255,255,.38); margin-top: 3px; }
+
+    /* Team photo strip */
+    .team-strip {
+      position: relative;
+      height: 120px;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+    .team-strip img { width: 100%; height: 100%; object-fit: cover; filter: brightness(.45) saturate(.8); }
+    .team-strip-label {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 12px;
+    }
+    .team-strip-label .tsl-name {
+      font-family: var(--serif);
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--white);
+      letter-spacing: .5px;
+    }
+    .team-strip-label .tsl-title {
+      font-size: 10px;
+      color: var(--orange);
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      margin-top: 3px;
+    }
+    .team-strip-label .tsl-desc {
+      font-size: 10.5px;
+      color: rgba(255,255,255,.55);
+      margin-top: 5px;
+      line-height: 1.45;
+    }
+
+    /* Einstein quote */
+    .quote-block {
+      margin: 0;
+      padding: 16px 18px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      display: flex;
+      gap: 10px;
+    }
+    .quote-bar { width: 3px; background: var(--orange); border-radius: 2px; flex-shrink: 0; }
+    .quote-text { font-family: var(--serif); font-size: 13px; color: rgba(255,255,255,.7); line-height: 1.6; font-style: italic; }
+    .quote-text cite { display: block; font-style: normal; font-size: 10px; color: var(--orange); margin-top: 5px; letter-spacing: .5px; }
+
+    /* Insights list */
+    .insights-head {
+      padding: 14px 18px 6px;
+      font-size: 9.5px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,.3);
+    }
+    .insight-item {
+      padding: 11px 18px;
+      border-bottom: 1px solid rgba(255,255,255,.05);
+      cursor: pointer;
+      transition: background .14s;
+    }
+    .insight-item:hover { background: rgba(255,255,255,.04); }
+    .insight-date  { font-size: 10px; color: var(--orange); letter-spacing: .4px; margin-bottom: 3px; }
+    .insight-title { font-size: 12px; color: rgba(255,255,255,.78); line-height: 1.45; }
+
+    /* ══ RESPONSIVE ══════════════════════════════════════════════════════ */
+    @media (max-width: 860px) { .sidebar { display: none; } }
+    @media (max-width: 600px) { .controls-strip { flex-wrap: wrap; gap: 10px; } }
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ══ TOPBAR ══ -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <!-- Real SkyView white logo from their CDN -->
+      <img
+        class="site-logo"
+        src="https://skyviewadv.com/wp-content/themes/yootheme/cache/8e/White-logo-scaled-8ea845d8.png"
+        alt="SkyView Investment Advisors LLC"
+        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+      />
+      <!-- Fallback text logo if image fails -->
+      <div style="display:none; font-family:var(--serif); font-size:16px; font-weight:700; color:white; letter-spacing:1.5px; text-transform:uppercase;">
+        SkyView Investment Advisors LLC
+      </div>
+      <div class="divider-v"></div>
+      <span class="topbar-sub">Claris {% if role == 'advisor' %}Advisor Tool{% else %}Client Portal{% endif %}</span>
+    </div>
+    <div class="topbar-right">
+      {% if role == 'advisor' %}
+      <div class="pill" style="background:rgba(254,110,0,0.18); border-color:rgba(254,110,0,0.5); color:#fe6e00;">
+        <div class="pill-dot" style="background:#fe6e00;"></div>Advisor Mode
+      </div>
+      {% else %}
+      <div class="pill"><div class="pill-dot"></div>Online</div>
+      {% endif %}
+      <button class="btn-top" onclick="saveConversation()">Save</button>
+      <button class="btn-top" onclick="resetChat()">New Session</button>
+    </div>
+  </header>
+
+  <div class="body">
+    <!-- ══ MAIN COLUMN ══ -->
+    <div class="main">
+
+      <!-- Profile & mode controls (advisor only) -->
+      {% if role == 'advisor' %}
+      <div class="controls-strip">
+        <div class="ctrl-group">
+          <span class="ctrl-label">Client Profile</span>
+          <button class="seg-btn active" onclick="setProfile(this,'general')">General</button>
+          <button class="seg-btn" onclick="setProfile(this,'family_office')">Family Office</button>
+          <button class="seg-btn" onclick="setProfile(this,'institution')">Institution</button>
+          <button class="seg-btn" onclick="setProfile(this,'wealth_manager')">Wealth Manager</button>
+        </div>
+        <div class="ctrl-sep"></div>
+        <div class="ctrl-group">
+          <span class="ctrl-label">Mode</span>
+          <button class="seg-btn mode active" onclick="setMode(this,'qa')">Q&amp;A</button>
+          <button class="seg-btn mode" onclick="setMode(this,'advisor')">Advisor</button>
+          <button class="seg-btn mode" onclick="setMode(this,'portfolio')">Portfolio</button>
+          <button class="seg-btn mode" onclick="setMode(this,'research')">Research</button>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Messages -->
+      <div id="messages">
+        <div class="disclaimer">
+          This assistant provides general investment information only — not personalised investment advice. All content is for informational purposes. Consult a licensed SkyView Investment Advisors professional for guidance specific to your situation. SkyView Investment Advisors LLC is a registered investment adviser.
+        </div>
+
+        <!-- Welcome -->
+        <div class="msg-row bot" id="welcome-msg">
+          <div class="msg-mark">
+            <div class="mark-inner bot">
+              <img
+                src="https://skyviewadv.com/wp-content/themes/yootheme/cache/8e/White-logo-scaled-8ea845d8.png"
+                alt="S"
+                onerror="this.style.display='none'; this.parentElement.innerHTML='<span>S</span>';"
+              />
+            </div>
+          </div>
+          <div class="msg-body">
+            <div class="bubble" id="welcome-bubble"></div>
+            <div class="msg-meta" id="welcome-meta"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Attachment chips preview -->
+      <div id="attach-preview"></div>
+
+      <!-- Suggestions -->
+      <div id="suggestions"></div>
+
+      <!-- Input -->
+      <div class="input-area">
+        <input type="file" id="file-input" multiple accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.txt,.csv,.md,.json" onchange="onFilesSelected(this.files)"/>
+        <div class="input-row">
+          <button class="btn-attach" id="attach-btn" onclick="document.getElementById('file-input').click()" title="Attach files (PDF, images, CSV, text)">
+            📎
+          </button>
+          <textarea
+            id="user-input"
+            placeholder="Ask about investments, strategies, portfolios, or attach a document for analysis…"
+            rows="1"
+            onkeydown="onKey(event)"
+            oninput="autoResize(this)"
+          ></textarea>
+          <button id="send-btn" onclick="sendMessage()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </button>
+        </div>
+        <div class="input-hint">Enter to send · Shift+Enter for new line</div>
+        <div class="file-types-hint">Accepts: PDF · Images (JPG, PNG) · CSV · Text · JSON</div>
+      </div>
+
+    </div><!-- /main -->
+
+    <!-- ══ SIDEBAR ══ -->
+    <aside class="sidebar">
+
+      <!-- Hero: homepage banner photo from SkyView site -->
+      <div class="sidebar-hero">
+        <img
+          src="https://skyviewadv.com/wp-content/themes/yootheme/cache/84/homepage-banner-84423712.jpeg"
+          alt="SkyView"
+          onerror="this.style.background='var(--navy-deep)'; this.style.display='block';"
+        />
+        <div class="sidebar-hero-overlay">
+          <h2>Research<br>Driven</h2>
+          <p>Est. 2009 · New Jersey</p>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="sidebar-body">
+        <div class="stats-grid">
+          <div class="stat">
+            <div class="stat-label">AUM</div>
+            <div class="stat-val">$6.9B</div>
+            <div class="stat-sub">As of 2025</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Experience</div>
+            <div class="stat-val">30+</div>
+            <div class="stat-sub">Years avg., senior team</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Founded</div>
+            <div class="stat-val">2009</div>
+            <div class="stat-sub">SEC Registered RIA</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Strategies</div>
+            <div class="stat-val">15+</div>
+            <div class="stat-sub">Traditional &amp; alternative</div>
+          </div>
+        </div>
+
+        <!-- Team photo: professionals in meeting from SkyView site -->
+        <div class="team-strip">
+          <img
+            src="https://skyviewadv.com/wp-content/themes/yootheme/cache/1f/455A8055-scaled-1f8b857b.jpeg"
+            alt="SkyView Team"
+            onerror="this.style.display='none';"
+          />
+          <div class="team-strip-label">
+            <div class="tsl-name">Dr. Harry Markowitz</div>
+            <div class="tsl-title">Nobel Laureate · Advisory Board</div>
+            <div class="tsl-desc">Father of Modern Portfolio Theory<br>Consulting with SkyView since 1992</div>
+          </div>
+        </div>
+
+        <!-- Einstein quote -->
+        <div class="quote-block">
+          <div class="quote-bar"></div>
+          <div class="quote-text">
+            "Information alone is not knowledge. The only source of knowledge is experience."
+            <cite>— Albert Einstein · SkyView's guiding principle</cite>
+          </div>
+        </div>
+
+        <!-- Latest Insights -->
+        <div class="insights-head">Latest Insights</div>
+
+        <div class="insight-item" onclick="askAbout('U.S.-Israeli military operations in Iran and the long-term geopolitical and market implications')">
+          <div class="insight-date">Mar 5, 2026</div>
+          <div class="insight-title">U.S.-Israeli Operations in Iran: Market &amp; Portfolio Implications</div>
+        </div>
+        <div class="insight-item" onclick="askAbout('Strong economy, business manager optimism, and capital investment drivers heading into 2026')">
+          <div class="insight-date">Feb 10, 2026</div>
+          <div class="insight-title">Strong Economy Drives Business Optimism &amp; Capital Investment</div>
+        </div>
+        <div class="insight-item" onclick="askAbout('Upside risk to 2026 U.S. economic forecasts and consumer spending by top earners')">
+          <div class="insight-date">Dec 30, 2025</div>
+          <div class="insight-title">Upside Risk to 2026 U.S. Economic Forecasts</div>
+        </div>
+        <div class="insight-item" onclick="askAbout('How does Modern Portfolio Theory apply to constructing a multi-asset portfolio today, given current market conditions?')">
+          <div class="insight-date">Markowitz Series</div>
+          <div class="insight-title">Modern Portfolio Theory in Practice</div>
+        </div>
+        <div class="insight-item" onclick="askAbout('Distressed investing strategies: mechanics, risk/return profile, and role in a multi-asset portfolio')">
+          <div class="insight-date">Strategy Deep Dive</div>
+          <div class="insight-title">Distressed Investing: Risk, Return &amp; Portfolio Role</div>
+        </div>
+
+      </div><!-- /sidebar-body -->
+    </aside>
+
+  </div><!-- /body -->
+</div><!-- /shell -->
+
+<script>
+  // ── Configure marked.js ─────────────────────────────────────────────────
+  marked.setOptions({
+    breaks:  true,
+    gfm:     true,
+    tables:  true,
+  });
+
+  // ── Role (set server-side via Jinja2) ────────────────────────────────────
+  const ROLE = '{{ role }}';   // 'advisor' or 'client'
+
+  // ── State ───────────────────────────────────────────────────────────────
+  let isBusy      = false;
+  let pendingFiles = [];   // { name, media_type, data (base64 or text) }
+
+  const modePlaceholders = {
+    qa:        'Ask about SkyView services, investment strategies, market topics, or account questions…',
+    advisor:   'Request advisor tools: draft a client email, quarterly review, meeting summary, or research…',
+    portfolio: 'Describe or paste portfolio data for analysis (allocations, asset classes, goals, horizon)…',
+    research:  'Research any strategy in our universe: merger arbitrage, distressed debt, global macro…',
+  };
+
+  const clientSuggestions = [
+    "What is SkyView's investment philosophy and approach?",
+    "How does SkyView differ from larger investment firms?",
+    "What types of investment strategies does SkyView offer?",
+    "How do I get started as a SkyView client?",
+  ];
+
+  const modeSuggestions = {
+    qa: ROLE === 'advisor' ? [
+      "What is SkyView's investment philosophy?",
+      "How does SkyView distinguish itself from larger firms?",
+      "Explain the role of alternative strategies in a multi-asset portfolio",
+      "What client types does SkyView serve and how?",
+    ] : clientSuggestions,
+    advisor: [
+      "Draft a quarterly review letter for a conservative Family Office client",
+      "Summarise a meeting: institutional client wants to increase alternative exposure",
+      "Draft an investment proposal for a new wealth manager relationship",
+      "Prepare talking points for a business development meeting",
+    ],
+    portfolio: [
+      "Analyse: 50% global equities, 25% fixed income, 20% alternatives, 5% cash — moderate risk, 15-year horizon",
+      "Review a concentrated tech-heavy equity portfolio and flag key risks",
+      "Rebalancing recommendations for a 65/35 moderately aggressive institution",
+      "Assess a family office portfolio heavily weighted to private equity",
+    ],
+    research: [
+      "Merger arbitrage: mechanics, risk/return, and portfolio fit",
+      "When does long/short equity outperform in a multi-asset context?",
+      "Distressed investing: risks, expected returns, and correlation benefits",
+      "Global macro vs. event-driven: a comparison for institutional allocators",
+    ],
+  };
+
+  // ── Init ─────────────────────────────────────────────────────────────────
+  const welcomeTextAdvisor = `**SkyView Investment Advisors LLC** | Advisor Research Tool
+
+Welcome. Select a client profile and mode above, or begin directly. Available capabilities:
+
+- **Portfolio Review** — allocation analysis, risk decomposition, factor exposures, and rebalancing
+- **Client Communications** — draft quarterly reviews, proposals, meeting summaries, and letters
+- **Strategy Research** — in-depth analysis of any strategy in SkyView's investment universe
+- **Market Analysis** — macro themes, economic indicators, and investment environment research
+- **Document Analysis** — attach PDF reports, data files, or spreadsheets for structured review`;
+
+  const welcomeTextClient = `**SkyView Investment Advisors LLC** | Client Intelligence Portal
+
+Welcome. I'm Claris, SkyView's research assistant. How can I assist you today?
+
+- **Investment Questions** — strategies, market topics, and investment concepts explained clearly
+- **About SkyView** — our philosophy, team, services, and investment approach
+- **Portfolio Concepts** — allocation, diversification, risk management, and more
+- **Document Review** — attach statements or reports and I'll walk you through them
+
+For account-specific enquiries, please contact your SkyView advisor directly.`;
+
+  const welcomeText = ROLE === 'advisor' ? welcomeTextAdvisor : welcomeTextClient;
+  document.getElementById('welcome-bubble').innerHTML = marked.parse(welcomeText);
+  document.getElementById('welcome-meta').textContent = ts();
+  refreshSuggestions('qa');
+
+  // ── Time stamp ───────────────────────────────────────────────────────────
+  function ts() {
+    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  // ── Profile & Mode ───────────────────────────────────────────────────────
+  function setProfile(btn, profile) {
+    document.querySelectorAll('.seg-btn:not(.mode)').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    fetch('/set-client-type', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ client_type: profile }),
+    });
+  }
+
+  function setMode(btn, mode) {
+    document.querySelectorAll('.seg-btn.mode').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('user-input').placeholder = modePlaceholders[mode];
+    refreshSuggestions(mode);
+  }
+
+  function refreshSuggestions(mode) {
+    document.getElementById('suggestions').innerHTML =
+      modeSuggestions[mode].map(t =>
+        `<div class="chip" onclick="useChip(this)">${t}</div>`
+      ).join('');
+  }
+
+  // ── Message rendering ────────────────────────────────────────────────────
+  function appendMsg(role, html, meta = {}) {
+    const msgs = document.getElementById('messages');
+    const row  = document.createElement('div');
+    row.className = `msg-row ${role}`;
+
+    const isBot = role === 'bot';
+    const markHTML = isBot
+      ? `<div class="mark-inner bot">
+           <img src="https://skyviewadv.com/wp-content/themes/yootheme/cache/8e/White-logo-scaled-8ea845d8.png"
+                alt="S" onerror="this.style.display='none';this.parentElement.innerHTML='<span>S</span>';" />
+         </div>`
+      : `<div class="mark-inner user"><span>↑</span></div>`;
+
+    const toolTags = (meta.tools_used || [])
+      .map(t => `<span class="tool-tag">${t.replace(/_/g,' ')}</span>`).join(' ');
+
+    const tokenNote = meta.tokens
+      ? `<span style="color:var(--text-muted)">· ${meta.tokens.toLocaleString()} tokens</span>`
+      : '';
+
+    row.innerHTML = `
+      <div class="msg-mark"><div>${markHTML}</div></div>
+      <div class="msg-body">
+        <div class="bubble">${html}</div>
+        <div class="msg-meta">${ts()} ${toolTags} ${tokenNote}</div>
+      </div>`;
+
+    msgs.appendChild(row);
+    msgs.scrollTop = msgs.scrollHeight;
+    return row;
+  }
+
+  function showTyping() {
+    const msgs = document.getElementById('messages');
+    const row  = document.createElement('div');
+    row.id = 'typing-row';
+    row.className = 'msg-row bot typing-wrap';
+    row.innerHTML = `
+      <div class="msg-mark"><div>
+        <div class="mark-inner bot">
+          <img src="https://skyviewadv.com/wp-content/themes/yootheme/cache/8e/White-logo-scaled-8ea845d8.png"
+               alt="S" onerror="this.style.display='none';this.parentElement.innerHTML='<span>S</span>';" />
+        </div>
+      </div></div>
+      <div class="msg-body">
+        <div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>
+      </div>`;
+    msgs.appendChild(row);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  function removeTyping() {
+    const el = document.getElementById('typing-row');
+    if (el) el.remove();
+  }
+
+  // ── File Handling ────────────────────────────────────────────────────────
+  const FILE_ICONS = {
+    'application/pdf':  '📄',
+    'image/jpeg':       '🖼',
+    'image/png':        '🖼',
+    'image/gif':        '🖼',
+    'image/webp':       '🖼',
+    'text/plain':       '📝',
+    'text/csv':         '📊',
+    'text/markdown':    '📝',
+    'application/json': '{ }',
+  };
+
+  function onFilesSelected(fileList) {
+    const files = Array.from(fileList);
+    files.forEach(file => {
+      const reader = new FileReader();
+      const isText = file.type.startsWith('text/') || file.type === 'application/json';
+
+      reader.onload = e => {
+        let data = e.target.result;
+        if (!isText) {
+          // Strip the "data:...;base64," prefix
+          data = data.split(',')[1];
+        }
+        pendingFiles.push({ name: file.name, media_type: file.type || 'text/plain', data });
+        renderFileChips();
+      };
+
+      if (isText) {
+        reader.readAsText(file);
+      } else {
+        reader.readAsDataURL(file);
+      }
+    });
+    // Reset file input so same file can be re-selected
+    document.getElementById('file-input').value = '';
+  }
+
+  function renderFileChips() {
+    const preview = document.getElementById('attach-preview');
+    if (!pendingFiles.length) {
+      preview.style.display = 'none';
+      document.getElementById('attach-btn').classList.remove('has-files');
+      return;
+    }
+    preview.style.display = 'flex';
+    document.getElementById('attach-btn').classList.add('has-files');
+
+    preview.innerHTML = pendingFiles.map((f, i) => `
+      <div class="attach-chip">
+        <span class="chip-icon">${FILE_ICONS[f.media_type] || '📎'}</span>
+        <span class="chip-name" title="${f.name}">${f.name}</span>
+        <span class="chip-remove" onclick="removeFile(${i})">×</span>
+      </div>`).join('');
+  }
+
+  function removeFile(idx) {
+    pendingFiles.splice(idx, 1);
+    renderFileChips();
+  }
+
+  // Drag and drop support
+  const msgsEl = document.getElementById('messages');
+  msgsEl.addEventListener('dragover', e => { e.preventDefault(); msgsEl.style.outline = '2px dashed var(--orange)'; });
+  msgsEl.addEventListener('dragleave', () => { msgsEl.style.outline = ''; });
+  msgsEl.addEventListener('drop', e => {
+    e.preventDefault();
+    msgsEl.style.outline = '';
+    onFilesSelected(e.dataTransfer.files);
+  });
+
+  // ── Send ─────────────────────────────────────────────────────────────────
+  async function sendMessage() {
+    if (isBusy) return;
+    const input = document.getElementById('user-input');
+    const msg   = input.value.trim();
+
+    if (!msg && !pendingFiles.length) return;
+
+    input.value = '';
+    input.style.height = 'auto';
+    document.getElementById('send-btn').disabled = true;
+    document.getElementById('suggestions').style.display = 'none';
+    isBusy = true;
+
+    // Build user display text
+    let displayParts = [];
+    if (pendingFiles.length) {
+      displayParts.push(pendingFiles.map(f => `📎 ${f.name}`).join(' · '));
+    }
+    if (msg) displayParts.push(msg);
+    appendMsg('user', displayParts.join('<br>'));
+
+    const filesToSend = [...pendingFiles];
+    pendingFiles = [];
+    renderFileChips();
+
+    showTyping();
+
+    try {
+      const body = { message: msg };
+      if (filesToSend.length) body.attachments = filesToSend;
+
+      // ── Streaming fetch via /chat/stream ─────────────────────────────────
+      const res = await fetch('/chat/stream', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        removeTyping();
+        appendMsg('bot', '<strong>Server error.</strong> Please try again.');
+        document.getElementById('send-btn').disabled = false;
+        isBusy = false;
+        input.focus();
+        return;
+      }
+
+      const reader  = res.body.getReader();
+      const decoder = new TextDecoder();
+      let   buffer  = '';
+      let   rawText = '';        // accumulated plain text
+      let   toolsUsed = [];
+      let   botRow  = null;      // the DOM row we'll update live
+
+      removeTyping();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();   // keep incomplete line
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          let evt;
+          try { evt = JSON.parse(line.slice(6)); } catch { continue; }
+
+          if (evt.error) {
+            if (botRow) botRow.querySelector('.bubble').innerHTML = `<strong>Error:</strong> ${evt.error}`;
+            else appendMsg('bot', `<strong>Error:</strong> ${evt.error}`);
+            break;
+          }
+
+          if (evt.tool) {
+            // Show a subtle "thinking…" indicator while tools run
+            if (!botRow) {
+              botRow = appendMsg('bot', `<em style="color:#888;font-size:.85em">Researching…</em>`);
+            }
+            toolsUsed.push(evt.tool);
+          }
+
+          if (evt.token) {
+            rawText += evt.token;
+            // Re-render markdown live as tokens arrive
+            if (!botRow) botRow = appendMsg('bot', '');
+            botRow.querySelector('.bubble').innerHTML = marked.parse(rawText);
+            // Auto-scroll
+            const msgs = document.getElementById('messages');
+            msgs.scrollTop = msgs.scrollHeight;
+          }
+
+          if (evt.done) {
+            toolsUsed = evt.tools_used || toolsUsed;
+            // Final clean render
+            if (botRow && rawText) {
+              botRow.querySelector('.bubble').innerHTML = marked.parse(rawText);
+            }
+            if (toolsUsed.length && botRow) {
+              const meta = document.createElement('div');
+              meta.className = 'msg-meta';
+              meta.textContent = `Tools: ${toolsUsed.join(', ')}`;
+              botRow.querySelector('.bubble').appendChild(meta);
+            }
+          }
+        }
+      }
+
+      // Fallback: if nothing rendered at all
+      if (!botRow) appendMsg('bot', '<em>No response received.</em>');
+
+    } catch (err) {
+      removeTyping();
+      appendMsg('bot', '<strong>Connection error.</strong> Ensure the server is running at <code>http://127.0.0.1:5000</code>.');
+    }
+
+    document.getElementById('send-btn').disabled = false;
+    isBusy = false;
+    input.focus();
+  }
+
+  function useChip(el) {
+    document.getElementById('user-input').value = el.textContent.trim();
+    sendMessage();
+  }
+
+  function askAbout(topic) {
+    document.getElementById('user-input').value = topic;
+    sendMessage();
+  }
+
+  // ── Controls ─────────────────────────────────────────────────────────────
+  async function resetChat() {
+    await fetch('/reset', { method: 'POST' });
+    const msgs = document.getElementById('messages');
+    msgs.innerHTML = `
+      <div class="disclaimer">
+        This assistant provides general investment information only — not personalised investment advice.
+        Consult a licensed SkyView advisor for guidance specific to your situation.
+      </div>`;
+    appendMsg('bot', marked.parse('Session reset. How may I assist you?'));
+    document.getElementById('suggestions').style.display = 'flex';
+    pendingFiles = [];
+    renderFileChips();
+  }
+
+  async function saveConversation() {
+    const res  = await fetch('/save', { method: 'POST' });
+    const data = await res.json();
+    appendMsg('bot',
+      data.file
+        ? marked.parse(`Conversation saved to \`${data.file}\``)
+        : marked.parse(`**Save failed:** ${data.error}`)
+    );
+  }
+
+  // ── Input helpers ────────────────────────────────────────────────────────
+  function onKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  }
+
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 140) + 'px';
+  }
+</script>
+</body>
+</html>
