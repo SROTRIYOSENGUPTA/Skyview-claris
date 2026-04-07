@@ -378,4 +378,3 @@ if __name__ == "__main__":
 
     # Dev only — production runs via gunicorn (see Procfile)
     app.run(debug=False, port=5000, host="127.0.0.1")
-notepad C:\Skyview-claris\app.py
