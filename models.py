@@ -15,7 +15,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import DeclarativeBase, relationship, Mapped, mapped_column
-from pgvector.sqlalchemy import Vector
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -200,19 +200,13 @@ class KnowledgeChunk(Base):
     chunk_index = Column(Integer, nullable=False)  # Position within document
     chunk_text = Column(Text, nullable=False)
     token_count = Column(Integer, nullable=True)
-    embedding = Column(Vector(1536), nullable=True)  # pgvector 1536-dim (voyage-3 / ada-002)
+    embedding_json = Column(Text, nullable=True)  # stored as JSON (pgvector not available on free tier)
 
     created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
 
     # Relationships
     document = relationship("KnowledgeDocument", back_populates="chunks")
-
-    __table_args__ = (
-        Index("ix_knowledge_chunks_embedding", "embedding",
-              postgresql_using="ivfflat",
-              postgresql_ops={"embedding": "vector_cosine_ops"}),
-    )
-
+    
     def __repr__(self):
         return f"<KnowledgeChunk doc={self.document_id} idx={self.chunk_index}>"
 
