@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Admin{% endblock %} — Claris Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --navy: #0F2744; --accent: #2E75B6; --gold: #B8860B; --teal: #1A7A6D; --bg: #f5f7fa; --border: #e2e8f0; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); min-height: 100vh; display: flex; }
+        .admin-sidebar {
+            width: 240px; background: var(--navy); color: #fff; padding: 24px 0;
+            display: flex; flex-direction: column; flex-shrink: 0; min-height: 100vh;
+        }
+        .admin-sidebar .brand { padding: 0 20px 20px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+        .admin-sidebar .brand h2 { font-size: 18px; font-weight: 600; }
+        .admin-sidebar .brand small { font-size: 11px; color: #6ba3d6; }
+        .admin-nav { flex: 1; padding: 12px 0; }
+        .admin-nav a {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 20px; color: #8aa8c7; text-decoration: none;
+            font-size: 13px; transition: all 0.15s;
+        }
+        .admin-nav a:hover { background: rgba(255,255,255,0.05); color: #fff; }
+        .admin-nav a.active { background: rgba(46,117,182,0.15); color: #fff; border-left: 3px solid var(--accent); }
+        .admin-main { flex: 1; padding: 32px; overflow-y: auto; }
+        .admin-main h1 { font-size: 24px; font-weight: 600; color: var(--navy); margin-bottom: 24px; }
+        .card { background: #fff; border-radius: 12px; border: 1px solid var(--border); padding: 24px; margin-bottom: 24px; }
+        .card h3 { font-size: 14px; font-weight: 600; color: var(--navy); margin-bottom: 16px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .stat-card { background: #fff; border-radius: 12px; border: 1px solid var(--border); padding: 20px; }
+        .stat-card .stat-value { font-size: 32px; font-weight: 700; color: var(--navy); }
+        .stat-card .stat-label { font-size: 12px; color: #6b7280; margin-top: 4px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { text-align: left; padding: 10px 12px; background: #f8fafc; border-bottom: 2px solid var(--border); font-weight: 600; color: var(--navy); }
+        td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: #374151; }
+        .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 500; }
+        .badge-active { background: #e8f5e9; color: #2e7d32; }
+        .badge-inactive { background: #f3f4f6; color: #6b7280; }
+        .badge-pending { background: #fff3e0; color: #e65100; }
+        .badge-high { background: #fce4ec; color: #c62828; }
+        .badge-low { background: #e8f5e9; color: #2e7d32; }
+        .btn { padding: 8px 16px; border: none; border-radius: 8px; font-size: 13px; cursor: pointer; font-family: 'Inter', sans-serif; }
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-primary:hover { background: #3584c8; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: #374151; }
+        .btn-outline:hover { background: #f8fafc; }
+        .btn-sm { padding: 5px 10px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="admin-sidebar">
+        <div class="brand">
+            <h2>Claris Admin</h2>
+            <small>Multi-Persona Platform</small>
+        </div>
+        <nav class="admin-nav">
+            <a href="/admin/" class="{% if request.path == '/admin/' %}active{% endif %}">Dashboard</a>
+            <a href="/admin/personas" class="{% if 'personas' in request.path %}active{% endif %}">Personas</a>
+            <a href="/admin/employees" class="{% if 'employees' in request.path %}active{% endif %}">Employees</a>
+            <a href="/admin/knowledge" class="{% if 'knowledge' in request.path %}active{% endif %}">Knowledge</a>
+            <a href="/admin/compliance" class="{% if 'compliance' in request.path %}active{% endif %}">Compliance</a>
+            <a href="/admin/conversations" class="{% if 'conversations' in request.path %}active{% endif %}">Conversations</a>
+            <a href="/persona" style="margin-top: 24px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 16px;">Back to Chat</a>
+        </nav>
+    </div>
+    <div class="admin-main">
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

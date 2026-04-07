@@ -1,0 +1,45 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Conversation Detail{% endblock %}
+{% block content %}
+<h1>Conversation: {{ conversation.title or 'Untitled' }}</h1>
+<div class="stats-grid">
+    <div class="stat-card"><div class="stat-value">{{ conversation.message_count }}</div><div class="stat-label">Messages</div></div>
+    <div class="stat-card"><div class="stat-value">{{ conversation.total_tokens }}</div><div class="stat-label">Total Tokens</div></div>
+    <div class="stat-card"><div class="stat-value">{{ flags | length }}</div><div class="stat-label">Compliance Flags</div></div>
+</div>
+
+{% if flags %}
+<div class="card">
+    <h3>Compliance Flags</h3>
+    <table>
+        <thead><tr><th>Type</th><th>Severity</th><th>Description</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for f in flags %}
+        <tr>
+            <td>{{ f.flag_type | replace('_',' ') | title }}</td>
+            <td><span class="badge {{ 'badge-high' if f.severity in ['high','critical'] else 'badge-low' }}">{{ f.severity }}</span></td>
+            <td>{{ f.description }}</td>
+            <td>{{ 'Resolved' if f.resolved else 'Open' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<div class="card">
+    <h3>Message History</h3>
+    {% if conversation.messages %}
+    {% for msg in conversation.messages %}
+    <div style="margin-bottom:16px;padding:12px;border-radius:8px;background:{{ '#e8f0fe' if msg.role == 'user' else '#f8fafc' }};">
+        <div style="font-size:11px;font-weight:600;color:{{ '#1565c0' if msg.role == 'user' else '#2e7d32' }};margin-bottom:4px;">{{ msg.role | upper }}</div>
+        <div style="font-size:13px;line-height:1.6;white-space:pre-wrap;">{% if msg.content is string %}{{ msg.content }}{% else %}[Complex content]{% endif %}</div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p style="color:#6b7280;font-size:13px;">No messages recorded.</p>
+    {% endif %}
+</div>
+
+<a href="/admin/conversations" class="btn btn-outline">Back to Conversations</a>
+{% endblock %}

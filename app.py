@@ -360,6 +360,9 @@ def server_error(e):
 
 
 # ── Entry point ────────────────────────────────────────────────────────────────
+# -- Multi-Persona Platform --
+from app_persona import init_multipersona
+init_multipersona(app)
 
 if __name__ == "__main__":
     if not os.environ.get("ANTHROPIC_API_KEY"):
@@ -375,3 +378,4 @@ if __name__ == "__main__":
 
     # Dev only — production runs via gunicorn (see Procfile)
     app.run(debug=False, port=5000, host="127.0.0.1")
+notepad C:\Skyview-claris\app.py

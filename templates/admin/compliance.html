@@ -1,0 +1,39 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Compliance{% endblock %}
+{% block content %}
+<h1>Compliance Dashboard</h1>
+<div class="stats-grid">
+    <div class="stat-card"><div class="stat-value">{{ summary.total_flags }}</div><div class="stat-label">Total Flags (30 days)</div></div>
+    <div class="stat-card"><div class="stat-value" style="color:#c62828">{{ summary.unresolved_high_critical }}</div><div class="stat-label">Unresolved High/Critical</div></div>
+    <div class="stat-card"><div class="stat-value">{{ summary.by_severity.get('high', 0) }}</div><div class="stat-label">High Severity</div></div>
+    <div class="stat-card"><div class="stat-value">{{ summary.by_severity.get('low', 0) + summary.by_severity.get('medium', 0) }}</div><div class="stat-label">Low/Medium</div></div>
+</div>
+
+<div class="card">
+    <h3>Recent Compliance Flags</h3>
+    <table>
+        <thead><tr><th>Type</th><th>Severity</th><th>Description</th><th>Time</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>
+        {% for flag in recent_flags %}
+        <tr>
+            <td>{{ flag.flag_type | replace('_', ' ') | title }}</td>
+            <td><span class="badge {{ 'badge-high' if flag.severity in ['high','critical'] else 'badge-low' }}">{{ flag.severity }}</span></td>
+            <td>{{ flag.description | truncate(60) }}</td>
+            <td>{{ flag.created_at.strftime('%Y-%m-%d %H:%M') if flag.created_at else '-' }}</td>
+            <td>{{ 'Resolved' if flag.resolved else 'Open' }}</td>
+            <td>
+                {% if not flag.resolved %}
+                <button class="btn btn-outline btn-sm" onclick="resolveFlag('{{ flag.id }}')">Resolve</button>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+<script>
+function resolveFlag(id) {
+    fetch(`/admin/compliance/${id}/resolve`, { method: 'POST' }).then(() => location.reload());
+}
+</script>
+{% endblock %}

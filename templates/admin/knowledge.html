@@ -1,0 +1,76 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Knowledge Base{% endblock %}
+{% block content %}
+<h1>Knowledge Base</h1>
+
+<div class="card">
+    <h3>Upload Document</h3>
+    <form id="upload-form" enctype="multipart/form-data" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+        <div>
+            <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px;">Title</label>
+            <input name="title" id="doc-title" style="padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;width:250px;" placeholder="Document title">
+        </div>
+        <div>
+            <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px;">Category</label>
+            <select name="category" id="doc-category" style="padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;">
+                <option value="general">General</option>
+                <option value="theia">THEIA</option>
+                <option value="camp">CAMP</option>
+                <option value="sma">SMA Strategies</option>
+                <option value="compliance">Compliance</option>
+                <option value="market">Market Commentary</option>
+            </select>
+        </div>
+        <div>
+            <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px;">File (PDF, DOCX, PPTX, TXT)</label>
+            <input type="file" name="file" id="doc-file" accept=".pdf,.docx,.pptx,.txt,.csv" style="font-size:13px;">
+        </div>
+        <button type="button" class="btn btn-primary" onclick="uploadDoc()">Upload & Ingest</button>
+    </form>
+    <div id="upload-status" style="margin-top:12px;font-size:13px;"></div>
+</div>
+
+<div class="card">
+    <h3>All Documents</h3>
+    <table>
+        <thead><tr><th>Title</th><th>Category</th><th>Status</th><th>Uploaded</th><th>Actions</th></tr></thead>
+        <tbody>
+        {% for doc in documents %}
+        <tr>
+            <td>{{ doc.title }}<br><small style="color:#6b7280">{{ doc.source_file or '-' }}</small></td>
+            <td><span class="badge" style="background:#e8f0fe;color:#1565c0;">{{ doc.category }}</span></td>
+            <td><span class="badge {{ 'badge-active' if doc.status == 'approved' else 'badge-pending' if doc.status == 'pending' else 'badge-inactive' }}">{{ doc.status }}</span></td>
+            <td>{{ doc.created_at.strftime('%Y-%m-%d') if doc.created_at else '-' }}</td>
+            <td>
+                {% if doc.status == 'pending' %}
+                <button class="btn btn-primary btn-sm" onclick="approveDoc('{{ doc.id }}')">Approve</button>
+                <button class="btn btn-outline btn-sm" onclick="rejectDoc('{{ doc.id }}')">Reject</button>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+function uploadDoc() {
+    const form = document.getElementById('upload-form');
+    const formData = new FormData();
+    formData.append('title', document.getElementById('doc-title').value);
+    formData.append('category', document.getElementById('doc-category').value);
+    formData.append('file', document.getElementById('doc-file').files[0]);
+
+    document.getElementById('upload-status').textContent = 'Uploading and processing...';
+
+    fetch('/admin/knowledge/upload', { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(d => {
+            if (d.error) { document.getElementById('upload-status').textContent = 'Error: ' + d.error; }
+            else { document.getElementById('upload-status').textContent = `Uploaded "${d.title}" — ${d.chunks} chunks created. Pending approval.`; setTimeout(() => location.reload(), 1500); }
+        });
+}
+function approveDoc(id) { fetch(`/admin/knowledge/${id}/approve`, { method: 'POST' }).then(() => location.reload()); }
+function rejectDoc(id) { fetch(`/admin/knowledge/${id}/reject`, { method: 'POST' }).then(() => location.reload()); }
+</script>
+{% endblock %}

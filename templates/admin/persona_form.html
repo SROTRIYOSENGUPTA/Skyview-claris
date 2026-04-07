@@ -1,0 +1,75 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}{{ 'Edit' if persona else 'Create' }} Persona{% endblock %}
+{% block content %}
+<h1>{{ 'Edit' if persona else 'Create' }} Persona</h1>
+<div class="card">
+    <form method="POST" style="max-width: 700px;">
+        {% if not persona %}
+        <div style="margin-bottom: 16px;">
+            <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Employee</label>
+            <select name="employee_id" required style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;">
+                {% for e in employees %}
+                <option value="{{ e.id }}">{{ e.full_name }} — {{ e.title or e.email }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
+        <div style="margin-bottom: 16px;">
+            <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Display Name</label>
+            <input name="display_name" value="{{ persona.display_name if persona else '' }}" required
+                style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;">
+        </div>
+
+        <div style="margin-bottom: 16px;">
+            <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Bio Summary</label>
+            <textarea name="bio_summary" rows="4"
+                style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;">{{ persona.bio_summary if persona else '' }}</textarea>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+            <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Communication Style (JSON)</label>
+            <textarea name="communication_style" rows="6"
+                style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:'JetBrains Mono',monospace;">{{ persona.communication_style | tojson(indent=2) if persona and persona.communication_style else '{\n  "tone": "",\n  "formality": "",\n  "vocabulary_level": "",\n  "signature_phrases": []\n}' }}</textarea>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+            <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Expertise Areas (JSON array or comma-separated)</label>
+            <input name="expertise_areas" value="{{ persona.expertise_areas | tojson if persona and persona.expertise_areas else '' }}"
+                style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;"
+                placeholder='["quantitative_analysis", "machine_learning"]'>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+            <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Education (JSON)</label>
+            <textarea name="education" rows="3"
+                style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:'JetBrains Mono',monospace;">{{ persona.education | tojson(indent=2) if persona and persona.education else '{\n  "universities": [],\n  "skills": []\n}' }}</textarea>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+            <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Layer 2 System Prompt</label>
+            <textarea name="system_prompt_layer2" rows="15"
+                style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:'JetBrains Mono',monospace;">{{ persona.system_prompt_layer2 if persona else '' }}</textarea>
+            <small style="color:#6b7280;">The full persona system prompt. This is injected as Layer 2 between Firm Context and Knowledge.</small>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+            <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Tool Permissions (JSON array — empty = all tools)</label>
+            <input name="tool_permissions" value="{{ persona.tool_permissions | tojson if persona and persona.tool_permissions else '[]' }}"
+                style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;"
+                placeholder='["analyze_portfolio", "draft_client_communication"]'>
+        </div>
+
+        {% if persona %}
+        <div style="margin-bottom: 16px;">
+            <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Change Note</label>
+            <input name="change_note" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;"
+                placeholder="Describe what changed...">
+        </div>
+        {% endif %}
+
+        <button type="submit" class="btn btn-primary">{{ 'Update Persona' if persona else 'Create Persona' }}</button>
+        <a href="/admin/personas" class="btn btn-outline" style="margin-left:8px;">Cancel</a>
+    </form>
+</div>
+{% endblock %}

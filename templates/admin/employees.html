@@ -1,0 +1,51 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Employees{% endblock %}
+{% block content %}
+<h1>Employee Management</h1>
+<div class="card">
+    <h3>Add Employee</h3>
+    <form id="add-form" style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+        <div><label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px;">Full Name</label><input id="emp-name" style="padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;" placeholder="Jane Doe" required></div>
+        <div><label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px;">Email</label><input id="emp-email" type="email" style="padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;" placeholder="jdoe@skyviewadv.com" required></div>
+        <div><label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px;">Title</label><input id="emp-title" style="padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;" placeholder="Managing Director"></div>
+        <div><label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px;">Department</label><input id="emp-dept" style="padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;" placeholder="Investment"></div>
+        <div><label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px;">Role</label>
+            <select id="emp-role" style="padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;">
+                <option value="advisor">Advisor</option><option value="admin">Admin</option><option value="viewer">Viewer</option>
+            </select>
+        </div>
+        <button type="button" class="btn btn-primary" onclick="addEmployee()">Add Employee</button>
+    </form>
+</div>
+<div class="card">
+    <table>
+        <thead><tr><th>Name</th><th>Email</th><th>Title</th><th>Role</th><th>Persona</th><th>Last Login</th></tr></thead>
+        <tbody>
+        {% for e in employees %}
+        <tr>
+            <td>{{ e.full_name }}</td>
+            <td>{{ e.email }}</td>
+            <td>{{ e.title or '-' }}</td>
+            <td><span class="badge {{ 'badge-high' if e.role == 'admin' else 'badge-active' }}">{{ e.role }}</span></td>
+            <td>{% if e.persona %}<span class="badge badge-active">{{ e.persona.display_name }}</span>{% else %}<span class="badge badge-inactive">Not Set</span>{% endif %}</td>
+            <td>{{ e.last_login_at.strftime('%Y-%m-%d') if e.last_login_at else 'Never' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+<script>
+function addEmployee() {
+    fetch('/admin/employees/new', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            full_name: document.getElementById('emp-name').value,
+            email: document.getElementById('emp-email').value,
+            title: document.getElementById('emp-title').value,
+            department: document.getElementById('emp-dept').value,
+            role: document.getElementById('emp-role').value,
+        })
+    }).then(r => r.json()).then(d => { if (d.status === 'created') location.reload(); else alert(d.error); });
+}
+</script>
+{% endblock %}

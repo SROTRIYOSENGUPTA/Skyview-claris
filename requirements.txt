@@ -1,5 +1,31 @@
+# ─── Existing Claris Dependencies ───
 anthropic>=0.40.0
 flask>=3.0.0
 gunicorn>=21.2.0
 flask-limiter>=3.5.0
 flask-talisman>=1.1.0
+
+# ─── Multi-Persona Platform (NEW) ───
+# Database
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0
+alembic>=1.13.0
+pgvector>=0.2.0
+
+# Authentication
+flask-login>=0.6.0
+msal>=1.28.0
+
+# RAG Pipeline
+PyMuPDF>=1.24.0          # PDF text extraction (fitz)
+python-docx>=1.1.0       # DOCX text extraction
+python-pptx>=0.6.0       # PPTX text extraction
+voyageai>=0.3.0           # Voyage AI embeddings (primary)
+# openai>=1.0.0           # OpenAI embeddings (fallback — uncomment if needed)
+
+# Task Queue (for async document ingestion)
+celery>=5.3.0
+redis>=5.0.0
+
+# Monitoring
+sentry-sdk[flask]>=1.40.0

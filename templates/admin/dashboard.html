@@ -1,0 +1,30 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h1>Platform Dashboard</h1>
+<div class="stats-grid">
+    <div class="stat-card"><div class="stat-value">{{ stats.total_employees }}</div><div class="stat-label">Active Employees</div></div>
+    <div class="stat-card"><div class="stat-value">{{ stats.active_personas }}</div><div class="stat-label">Active Personas</div></div>
+    <div class="stat-card"><div class="stat-value">{{ stats.total_conversations }}</div><div class="stat-label">Total Conversations</div></div>
+    <div class="stat-card"><div class="stat-value">{{ stats.knowledge_documents }}</div><div class="stat-label">Knowledge Documents</div></div>
+    <div class="stat-card"><div class="stat-value">{{ stats.pending_documents }}</div><div class="stat-label">Pending Approval</div></div>
+</div>
+
+<div class="card">
+    <h3>Recent Conversations</h3>
+    <table>
+        <thead><tr><th>Employee</th><th>Title</th><th>Messages</th><th>Tokens</th><th>Started</th></tr></thead>
+        <tbody>
+        {% for conv in recent_conversations %}
+        <tr>
+            <td>{{ conv.employee.full_name if conv.employee else 'Unknown' }}</td>
+            <td><a href="/admin/conversations/{{ conv.id }}">{{ conv.title or 'Untitled' | truncate(40) }}</a></td>
+            <td>{{ conv.message_count }}</td>
+            <td>{{ conv.total_tokens }}</td>
+            <td>{{ conv.started_at.strftime('%Y-%m-%d %H:%M') if conv.started_at else '-' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

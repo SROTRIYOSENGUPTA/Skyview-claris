@@ -1,0 +1,36 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Personas{% endblock %}
+{% block content %}
+<h1>Persona Management</h1>
+<div style="margin-bottom: 16px;">
+    <a href="/admin/personas/new" class="btn btn-primary">+ Create New Persona</a>
+</div>
+<div class="card">
+    <table>
+        <thead><tr><th>Employee</th><th>Persona Name</th><th>Version</th><th>Status</th><th>Expertise</th><th>Actions</th></tr></thead>
+        <tbody>
+        {% for p in personas %}
+        <tr>
+            <td>{{ p.employee.full_name if p.employee else '-' }}<br><small style="color:#6b7280">{{ p.employee.title if p.employee else '' }}</small></td>
+            <td>{{ p.display_name }}</td>
+            <td>v{{ p.version }}</td>
+            <td><span class="badge {{ 'badge-active' if p.is_active else 'badge-inactive' }}">{{ 'Active' if p.is_active else 'Inactive' }}</span></td>
+            <td>{{ ', '.join(p.expertise_areas[:3]) if p.expertise_areas else '-' }}</td>
+            <td>
+                <a href="/admin/personas/{{ p.id }}/edit" class="btn btn-outline btn-sm">Edit</a>
+                <a href="/admin/personas/{{ p.id }}/test" class="btn btn-outline btn-sm">Test</a>
+                <button class="btn btn-outline btn-sm" onclick="togglePersona('{{ p.id }}')">{{ 'Deactivate' if p.is_active else 'Activate' }}</button>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+<script>
+function togglePersona(id) {
+    fetch(`/admin/personas/${id}/toggle`, { method: 'POST' })
+        .then(r => r.json())
+        .then(d => { alert(`Persona ${d.status}: ${d.persona}`); location.reload(); });
+}
+</script>
+{% endblock %}

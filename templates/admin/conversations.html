@@ -1,0 +1,30 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Conversations{% endblock %}
+{% block content %}
+<h1>Conversation Audit Log</h1>
+<div class="card">
+    <table>
+        <thead><tr><th>Employee</th><th>Title</th><th>Messages</th><th>Tokens</th><th>Flags</th><th>Started</th><th>Actions</th></tr></thead>
+        <tbody>
+        {% for conv in conversations %}
+        <tr>
+            <td>{{ conv.employee.full_name if conv.employee else 'Unknown' }}</td>
+            <td>{{ conv.title or 'Untitled' | truncate(40) }}</td>
+            <td>{{ conv.message_count }}</td>
+            <td>{{ conv.total_tokens }}</td>
+            <td>{{ conv.compliance_flags | length if conv.compliance_flags else 0 }}</td>
+            <td>{{ conv.started_at.strftime('%Y-%m-%d %H:%M') if conv.started_at else '-' }}</td>
+            <td><a href="/admin/conversations/{{ conv.id }}" class="btn btn-outline btn-sm">View</a></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% if total > per_page %}
+    <div style="margin-top:16px;display:flex;gap:8px;justify-content:center;">
+        {% if page > 1 %}<a href="?page={{ page - 1 }}" class="btn btn-outline btn-sm">Previous</a>{% endif %}
+        <span style="padding:5px 10px;font-size:13px;color:#6b7280;">Page {{ page }} of {{ (total / per_page) | int + 1 }}</span>
+        {% if page * per_page < total %}<a href="?page={{ page + 1 }}" class="btn btn-outline btn-sm">Next</a>{% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

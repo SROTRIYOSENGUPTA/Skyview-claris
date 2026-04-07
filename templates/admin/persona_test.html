@@ -1,0 +1,50 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Test: {{ persona.display_name }}{% endblock %}
+{% block content %}
+<h1>Test Mode: {{ persona.display_name }}</h1>
+<p style="color:#6b7280;font-size:13px;margin-bottom:16px;">Test conversations are not saved. Use this to validate persona behavior before activating.</p>
+<div class="card" style="height:500px;display:flex;flex-direction:column;">
+    <div id="test-messages" style="flex:1;overflow-y:auto;padding:16px;font-size:13px;"></div>
+    <div style="padding:16px;border-top:1px solid #e2e8f0;display:flex;gap:8px;">
+        <input id="test-input" style="flex:1;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;"
+            placeholder="Type a test message..." onkeydown="if(event.key==='Enter')testSend()">
+        <button class="btn btn-primary" onclick="testSend()">Send</button>
+    </div>
+</div>
+<script>
+const msgs = document.getElementById('test-messages');
+function testSend() {
+    const input = document.getElementById('test-input');
+    const msg = input.value.trim();
+    if (!msg) return;
+    msgs.innerHTML += `<div style="text-align:right;margin-bottom:8px;"><span style="background:#e8f0fe;padding:8px 12px;border-radius:8px;display:inline-block;">${msg}</span></div>`;
+    input.value = '';
+    msgs.innerHTML += `<div style="margin-bottom:8px;color:#6b7280;" id="typing">Thinking...</div>`;
+    msgs.scrollTop = msgs.scrollHeight;
+    fetch('/persona/chat/stream', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ message: msg })
+    }).then(r => {
+        const reader = r.body.getReader(); const dec = new TextDecoder(); let buf=''; let aiEl=null;
+        function read() {
+            reader.read().then(({done, value}) => {
+                if (done) return; buf += dec.decode(value,{stream:true});
+                const lines = buf.split('\n'); buf = lines.pop();
+                for (const line of lines) {
+                    if (!line.startsWith('data: ')) continue;
+                    const d = JSON.parse(line.slice(6));
+                    if (d.token) {
+                        const t = document.getElementById('typing'); if(t)t.remove();
+                        if(!aiEl){aiEl=document.createElement('div');aiEl.style.cssText='margin-bottom:8px;';aiEl.innerHTML='<span style="background:#f0f0f0;padding:8px 12px;border-radius:8px;display:inline-block;max-width:80%;text-align:left;"></span>';msgs.appendChild(aiEl);}
+                        aiEl.querySelector('span').textContent += d.token; msgs.scrollTop=msgs.scrollHeight;
+                    }
+                    if (d.done) { aiEl=null; }
+                }
+                read();
+            });
+        }
+        read();
+    });
+}
+</script>
+{% endblock %}
