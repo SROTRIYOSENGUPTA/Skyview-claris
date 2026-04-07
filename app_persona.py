@@ -550,7 +550,17 @@ def init_multipersona(app: Flask):
 # ─────────────────────────────────────────────────────────────────────────────
 # STANDALONE MODE (for testing without existing app.py)
 # ─────────────────────────────────────────────────────────────────────────────
-
+@persona_bp.route("/persona/seed", methods=["GET"])
+def run_seed():
+    """One-time seed endpoint — run once then remove."""
+    from seed_data import seed_database
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+    import os
+    engine = create_engine(os.environ["DATABASE_URL"].replace("postgres://", "postgresql://", 1))
+    with Session(engine) as db:
+        result = seed_database(db)
+    return f"<h2>Seed complete</h2><pre>{result}</pre><p><a href='/persona'>Go to Claris</a></p>"
 if __name__ == "__main__":
     app = Flask(__name__)
     app.secret_key = os.environ.get("FLASK_SECRET_KEY", os.urandom(32))
