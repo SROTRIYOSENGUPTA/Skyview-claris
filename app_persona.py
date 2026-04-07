@@ -552,15 +552,22 @@ def init_multipersona(app: Flask):
 # ─────────────────────────────────────────────────────────────────────────────
 @persona_bp.route("/persona/seed", methods=["GET"])
 def run_seed():
-    """One-time seed endpoint — run once then remove."""
-    from seed_data import seed_database
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import Session
-    import os
-    engine = create_engine(os.environ["DATABASE_URL"].replace("postgres://", "postgresql://", 1))
-    with Session(engine) as db:
-        result = seed_database(db)
-    return f"<h2>Seed complete</h2><pre>{result}</pre><p><a href='/persona'>Go to Claris</a></p>"
+    """One-time seed endpoint."""
+    try:
+        db = persona_bp.extensions_db()
+        from models import Employee, Persona
+        existing = db.query(Employee).filter(Employee.email == "ssengupta@skyviewadv.com").first()
+        if existing:
+            return f"<h2>Already seeded</h2><p>{existing.full_name} exists.</p><p><a href='/persona'>Go to Claris</a></p>"
+        srotriyo = Employee(email="ssengupta@skyviewadv.com", full_name="Srotriyo Sengupta", title="Quant AI Analyst", department="Investment & Technology", role="admin")
+        db.add(srotriyo)
+        db.flush()
+        persona = Persona(employee_id=srotriyo.id, display_name="Srotriyo Sengupta", bio_summary="Quant AI Analyst at SkyView Investment Advisors", communication_style={"tone": "warm, data-driven"}, expertise_areas=["quantitative_analysis", "machine_learning"], education={"universities": ["Rutgers University", "Princeton University"]}, system_prompt_layer2="You are the personalized AI investment advisor for Srotriyo Sengupta, Quant AI Analyst at SkyView Investment Advisors LLC. You embody his unique combination of quantitative rigor, machine learning expertise, and strategic investment thinking.", tool_permissions=[], response_preferences={"default_length": "detailed", "format": "structured"}, is_active=True, version=1)
+        db.add(persona)
+        db.commit()
+        return f"<h2>Seed complete!</h2><p>Created: {srotriyo.full_name} with persona.</p><p><a href='/persona'>Go to Claris</a></p>"
+    except Exception as e:
+        return f"<h2>Error</h2><pre>{e}</pre>"
 if __name__ == "__main__":
     app = Flask(__name__)
     app.secret_key = os.environ.get("FLASK_SECRET_KEY", os.urandom(32))
