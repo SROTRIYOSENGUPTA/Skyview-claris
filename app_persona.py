@@ -95,7 +95,7 @@ def init_auth(app: Flask, db_session):
     """Initialize Flask-Login and Azure AD SSO."""
     login_manager = LoginManager()
     login_manager.init_app(app)
-    login_manager.login_view = "persona_login"
+    login_manager.login_view = "persona.persona_login"
 
     @login_manager.user_loader
     def load_user(user_id):
@@ -153,7 +153,7 @@ def persona_login():
 @persona_bp.route("/persona/login/dev", methods=["POST"])
 def persona_login_dev():
     """Dev-mode login by email (no SSO). Disable in production."""
-    if os.environ.get("FLASK_ENV") == "production":
+    if os.environ.get("FLASK_ENV") == "production" and os.environ.get("AZURE_CLIENT_ID"):
         return jsonify({"error": "Dev login disabled in production"}), 403
 
     data = request.get_json() or request.form
