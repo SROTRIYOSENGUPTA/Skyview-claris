@@ -10,7 +10,6 @@ flask-talisman>=1.1.0
 sqlalchemy>=2.0.0
 psycopg2-binary>=2.9.0
 alembic>=1.13.0
-pgvector>=0.2.0
 
 # Authentication
 flask-login>=0.6.0
