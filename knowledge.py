@@ -256,7 +256,7 @@ def ingest_document(
             chunk_index=i,
             chunk_text=chunk,
             token_count=token_count,
-            embedding=embedding if embedding else None,
+            embedding_json=embedding if embedding else None,
         )
         db.add(db_chunk)
 
