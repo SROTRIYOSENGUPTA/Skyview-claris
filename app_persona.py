@@ -606,8 +606,7 @@ def refresh_srotriyo():
         db.commit()
         return f"<h2>Refreshed!</h2><p>Persona updated for {emp.full_name}</p>"
     except Exception as e:
-        return f"<h2>Error</h2><pre>{e}</pre>"
-if __name__ == "__main__":
+        return f"<h2>Error</h2><pre>{e}</pre>"if __name__ == "__main__":
     app = Flask(__name__)
     app.secret_key = os.environ.get("FLASK_SECRET_KEY", os.urandom(32))
 
