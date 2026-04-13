@@ -596,8 +596,11 @@ def refresh_srotriyo():
             ],
             "personal_interests": ["Quantitative trading", "Chess", "Soccer"],
         }
-        p.system_prompt_layer2 = p.system_prompt_layer2 + (
+        # Strip any prior "ADDITIONAL BACKGROUND" block and re-append a fresh one
+        base_prompt = p.system_prompt_layer2.split("\n\nADDITIONAL BACKGROUND:")[0]
+        p.system_prompt_layer2 = base_prompt + (
             "\n\nADDITIONAL BACKGROUND:\n"
+            "• Educational background spans from Rutgers University to Princeton University\n"
             "• Languages: English, Bengali, Hindi, Marathi, Spanish, French\n"
             "• Years of industry experience: 3.5 years\n"
             "• Prior firms: EquiLend (Wall Street), NJ Transit (contractor)\n"
