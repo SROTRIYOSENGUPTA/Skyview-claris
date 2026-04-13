@@ -568,6 +568,45 @@ def run_seed():
         return f"<h2>Seed complete!</h2><p>Created: {srotriyo.full_name} with persona.</p><p><a href='/persona'>Go to Claris</a></p>"
     except Exception as e:
         return f"<h2>Error</h2><pre>{e}</pre>"
+@persona_bp.route("/persona/refresh-srotriyo", methods=["GET"])
+def refresh_srotriyo():
+    try:
+        db = persona_bp.extensions_db()
+        from models import Employee, Persona
+        emp = db.query(Employee).filter(Employee.email == "ssengupta@skyviewadv.com").first()
+        if not emp or not emp.persona:
+            return "<h2>Error</h2><p>Run /persona/seed first.</p>"
+        p = emp.persona
+        p.bio_summary = (
+            "Quant AI Analyst at SkyView Investment Advisors specializing in the "
+            "intersection of machine learning and investment analysis. 3.5 years "
+            "industry experience with prior roles at EquiLend (Wall Street) and "
+            "NJ Transit (contractor). Rutgers & Princeton-educated computer engineer "
+            "with specialized ML training. Multilingual (English, Bengali, Hindi, "
+            "Marathi, Spanish, French). Interests include quant trading, chess, soccer."
+        )
+        p.education = {
+            "universities": ["Rutgers University", "Princeton University"],
+            "skills": ["Computer Engineering", "Machine Learning Specialized"],
+            "languages": ["English", "Bengali", "Hindi", "Marathi", "Spanish", "French"],
+            "years_experience": 3.5,
+            "prior_experience": [
+                {"company": "EquiLend", "context": "Wall Street"},
+                {"company": "NJ Transit", "context": "Contractor"},
+            ],
+            "personal_interests": ["Quantitative trading", "Chess", "Soccer"],
+        }
+        p.system_prompt_layer2 = p.system_prompt_layer2 + (
+            "\n\nADDITIONAL BACKGROUND:\n"
+            "• Languages: English, Bengali, Hindi, Marathi, Spanish, French\n"
+            "• Years of industry experience: 3.5 years\n"
+            "• Prior firms: EquiLend (Wall Street), NJ Transit (contractor)\n"
+            "• Personal interests: Quantitative trading, chess, soccer\n"
+        )
+        db.commit()
+        return f"<h2>Refreshed!</h2><p>Persona updated for {emp.full_name}</p>"
+    except Exception as e:
+        return f"<h2>Error</h2><pre>{e}</pre>"
 if __name__ == "__main__":
     app = Flask(__name__)
     app.secret_key = os.environ.get("FLASK_SECRET_KEY", os.urandom(32))
