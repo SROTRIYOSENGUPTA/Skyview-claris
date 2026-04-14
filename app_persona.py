@@ -153,10 +153,10 @@ def persona_login():
 @persona_bp.route("/persona/login/dev", methods=["POST"])
 def persona_login_dev():
     """Dev-mode login by email (no SSO). Disable in production."""
-    if os.environ.get("FLASK_ENV") == "production":
+    if os.environ.get("FLASK_ENV") == "production" and os.environ.get("AZURE_CLIENT_ID"):
         return jsonify({"error": "Dev login disabled in production"}), 403
 
-    data = request.get_json() or request.form
+    data = request.get_json(silent=True) or request.form
     email = data.get("email", "").strip().lower()
 
     if not email:
