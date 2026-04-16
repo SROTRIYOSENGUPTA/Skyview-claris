@@ -355,6 +355,7 @@ class MarketDataClient:
                 results = [{
                     "ticker": query_upper,
                     "name": info.get("longName", query_upper),
+                    "exchange": info.get("exchange", ""),
                 }]
                 return {"query": query, "results": results}
 
@@ -494,14 +495,29 @@ class MarketDataClient:
 
             for item in news_list[:10]:  # Limit to 10 headlines
                 try:
-                    news.append({
-                        "title": item.get("title", ""),
-                        "link": item.get("link", ""),
-                        "source": item.get("source", ""),
-                        "published": item.get(
-                            "providerPublishTime", ""
-                        ),  # Unix timestamp from yfinance
-                    })
+                    # Handle both old and new yfinance news formats
+                    # Old: {"title":..., "link":..., "source":..., "providerPublishTime":...}
+                    # New: {"content": {"title":..., "provider": {"displayName":...}}, "link":...}
+                    if "content" in item:
+                        content = item.get("content", {})
+                        provider = content.get("provider", {})
+                        pub_time = content.get("pubDate", "")
+                        news.append({
+                            "title": content.get("title", ""),
+                            "link": content.get("canonicalUrl", {}).get("url", "")
+                                    or item.get("link", ""),
+                            "source": provider.get("displayName", ""),
+                            "published": pub_time,
+                        })
+                    else:
+                        news.append({
+                            "title": item.get("title", ""),
+                            "link": item.get("link", ""),
+                            "source": item.get("source", item.get("publisher", "")),
+                            "published": item.get(
+                                "providerPublishTime", ""
+                            ),
+                        })
                 except Exception as e:
                     logger.debug(f"Error processing news item: {e}")
                     continue
@@ -544,6 +560,14 @@ class MarketDataClient:
                 return None
 
             # Extract key fields
+            # Normalize dividend yield: yfinance sometimes returns as
+            # decimal (0.0114) and sometimes as percentage (1.14).
+            # We always store as decimal so the frontend can * 100.
+            raw_div = info.get("dividendYield")
+            if raw_div is not None and raw_div > 1:
+                # Likely already a percentage value — convert to decimal
+                raw_div = raw_div / 100.0
+
             quote = {
                 "name": info.get("longName", ticker),
                 "price": info.get("currentPrice") or info.get("regularMarketPrice"),
@@ -555,10 +579,11 @@ class MarketDataClient:
                 "volume": info.get("volume"),
                 "market_cap": info.get("marketCap"),
                 "pe_ratio": info.get("trailingPE"),
-                "52w_high": info.get("fiftyTwoWeekHigh"),
-                "52w_low": info.get("fiftyTwoWeekLow"),
-                "dividend_yield": info.get("dividendYield"),
+                "high_52w": info.get("fiftyTwoWeekHigh"),
+                "low_52w": info.get("fiftyTwoWeekLow"),
+                "dividend_yield": raw_div,
                 "sector": info.get("sector"),
+                "exchange": info.get("exchange", ""),
                 "timestamp": datetime.utcnow().isoformat() + "Z",
             }
 
@@ -670,10 +695,18 @@ def snapshot():
     """
     GET /api/markets/snapshot
 
-    Returns market snapshot with key indices (SPY, QQQ, DIA, etc.)
+    Returns market snapshot as {"data": [{ticker, name, price, change, ...}]}
     """
     client = _get_client()
-    return client.get_market_snapshot()
+    raw = client.get_market_snapshot()
+    # Convert dict-by-ticker to array with ticker field
+    data = []
+    for ticker_key, values in raw.items():
+        if "error" not in values:
+            item = {"ticker": ticker_key}
+            item.update(values)
+            data.append(item)
+    return {"data": data}
 
 
 @market_bp.route("/quote/<ticker>", methods=["GET", "OPTIONS"])
@@ -682,11 +715,13 @@ def quote(ticker):
     """
     GET /api/markets/quote/<ticker>
 
-    Returns detailed quote for a security.
-    Example: GET /api/markets/quote/AAPL
+    Returns {"data": {ticker, name, price, change, ...}}
     """
     client = _get_client()
-    return client.get_quote(ticker)
+    raw = client.get_quote(ticker)
+    if "error" in raw:
+        return raw
+    return {"data": raw}
 
 
 @market_bp.route("/historical/<ticker>", methods=["GET", "OPTIONS"])
@@ -695,13 +730,16 @@ def historical(ticker):
     """
     GET /api/markets/historical/<ticker>?period=1M
 
-    Returns historical OHLCV data for charting.
-    Query parameters:
-    - period: 1D, 1W, 1M, 3M, 6M, 1Y, 5Y (default: 1M)
+    Returns {"data": [{date, open, high, low, close, volume}]}
     """
     period = request.args.get("period", "1M").upper()
     client = _get_client()
-    return client.get_historical(ticker, period)
+    raw = client.get_historical(ticker, period)
+    if "error" in raw:
+        return raw
+    # raw already has {"ticker":..., "period":..., "data":[...]}
+    # Frontend expects response.data to be the array
+    return {"data": raw.get("data", [])}
 
 
 @market_bp.route("/sectors", methods=["GET", "OPTIONS"])
@@ -710,10 +748,18 @@ def sectors():
     """
     GET /api/markets/sectors
 
-    Returns sector ETF performance (XLK, XLF, XLV, etc.)
+    Returns {"data": [{ticker, name, price, change, change_pct}]}
     """
     client = _get_client()
-    return client.get_sector_performance()
+    raw = client.get_sector_performance()
+    # Convert dict-by-ticker to array
+    data = []
+    for ticker_key, values in raw.items():
+        if "error" not in values:
+            item = {"ticker": ticker_key}
+            item.update(values)
+            data.append(item)
+    return {"data": data}
 
 
 @market_bp.route("/movers", methods=["GET", "OPTIONS"])
@@ -722,10 +768,23 @@ def movers():
     """
     GET /api/markets/movers
 
-    Returns top gainers and losers.
+    Returns {"data": {"gainers": [...], "losers": [...]}}
     """
     client = _get_client()
-    return client.get_market_movers()
+    raw = client.get_market_movers()
+    # Add price field to movers (frontend expects it)
+    for mover in raw.get("gainers", []):
+        if "price" not in mover:
+            # Fetch price from sector data
+            sector_data = client.get_sector_performance()
+            ticker_data = sector_data.get(mover["ticker"], {})
+            mover["price"] = ticker_data.get("price", 0)
+    for mover in raw.get("losers", []):
+        if "price" not in mover:
+            sector_data = client.get_sector_performance()
+            ticker_data = sector_data.get(mover["ticker"], {})
+            mover["price"] = ticker_data.get("price", 0)
+    return {"data": raw}
 
 
 @market_bp.route("/news", methods=["GET", "OPTIONS"])
@@ -734,13 +793,22 @@ def news():
     """
     GET /api/markets/news?ticker=AAPL
 
-    Returns financial news headlines.
-    Query parameters:
-    - ticker: Optional stock ticker for company-specific news
+    Returns {"data": [{title, link, publisher, published}]}
     """
     ticker = request.args.get("ticker", None)
     client = _get_client()
-    return client.get_news(ticker)
+    raw = client.get_news(ticker)
+    # Transform news array: rename 'source' -> 'publisher', flatten into data
+    news_items = raw.get("news", [])
+    data = []
+    for item in news_items:
+        data.append({
+            "title": item.get("title", ""),
+            "link": item.get("link", ""),
+            "publisher": item.get("source", ""),
+            "published": item.get("published", ""),
+        })
+    return {"data": data}
 
 
 @market_bp.route("/search", methods=["GET", "OPTIONS"])
@@ -749,16 +817,24 @@ def search():
     """
     GET /api/markets/search?q=AAPL
 
-    Search for securities by ticker or name.
-    Query parameters:
-    - q: Search query (required)
+    Returns {"data": [{ticker, name, exchange}]}
     """
     query = request.args.get("q", "").strip()
     if not query:
         return {"error": "Missing query parameter 'q'"}
 
     client = _get_client()
-    return client.search_securities(query)
+    raw = client.search_securities(query)
+    # Transform results to data array with exchange field
+    results = raw.get("results", [])
+    data = []
+    for item in results:
+        data.append({
+            "ticker": item.get("ticker", ""),
+            "name": item.get("name", ""),
+            "exchange": item.get("exchange", "NYSE"),
+        })
+    return {"data": data}
 
 
 # ============================================================================
