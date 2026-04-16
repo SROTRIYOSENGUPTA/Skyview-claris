@@ -275,6 +275,10 @@ def persona_logout():
 
 @persona_bp.route("/persona")
 @login_required
+def market_terminal():
+    """Bloomberg-style market terminal page."""
+    employee_name = session.get("employee_name", "Advisor")
+    return render_template("market_terminal.html", employee_name=employee_name)
 def persona_chat():
     """Main persona chat interface."""
     db = persona_bp.extensions_db()
@@ -516,30 +520,35 @@ def _generate_title(history: list) -> str:
 def init_multipersona(app: Flask):
     """
     Initialize the multi-persona platform on an existing Flask app.
-
     Call this in your app.py after creating the Flask app:
-
         from app_persona import init_multipersona
         init_multipersona(app)
     """
     # Initialize database
     db_session = init_database(app)
-
     # Initialize auth
     init_auth(app, db_session)
-
     # Helper to access DB from blueprint
     def get_db():
         return db_session()
-
     persona_bp.extensions_db = get_db
-
     # Register blueprints
     app.register_blueprint(persona_bp)
-
     from admin import admin_bp
     admin_bp.extensions_db = get_db
     app.register_blueprint(admin_bp)
+
+    # ── NEW: Initialize market data terminal ──
+    try:
+        from market_data import init_market_data
+        init_market_data(app)
+        logger.info("  Market terminal: /persona/terminal")
+        logger.info("  Market API:      /api/markets/*")
+    except ImportError:
+        logger.warning("market_data module not found — market terminal disabled. Install yfinance.")
+    except Exception as e:
+        logger.warning(f"Market data init failed: {e} — market terminal disabled")
+    # ── END NEW ──
 
     logger.info("Multi-persona platform initialized")
     logger.info("  Persona chat: /persona")
