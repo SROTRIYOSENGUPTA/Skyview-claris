@@ -273,17 +273,18 @@ def persona_logout():
     return redirect(url_for("persona.persona_login"))
 
 
-@persona_bp.route("/persona")
+@persona_bp.route("/persona/terminal")
 @login_required
 def market_terminal():
     """Bloomberg-style market terminal page."""
     employee_name = session.get("employee_name", "Advisor")
     return render_template("market_terminal.html", employee_name=employee_name)
+@persona_bp.route("/persona")
+@login_required
 def persona_chat():
     """Main persona chat interface."""
     db = persona_bp.extensions_db()
     employee_id = session.get("employee_id")
-
     employee = db.query(Employee).filter(Employee.id == employee_id).first()
     if not employee:
         return redirect(url_for("persona.persona_login"))
