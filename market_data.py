@@ -454,6 +454,81 @@ class MarketDataClient:
         self.cache.set(cache_key, result, self.QUOTE_CACHE_TTL)
         return result
 
+    def get_earnings_calendar(self, ticker: str) -> Dict[str, Any]:
+        """
+        Retrieve upcoming earnings dates for a ticker.
+        """
+        cache_key = f"earnings_{ticker.upper()}"
+        cached = self.cache.get(cache_key)
+        if cached:
+            return cached
+
+        try:
+            ticker_obj = yf.Ticker(ticker.upper())
+            next_earnings = None
+            history = []
+
+            try:
+                dates = ticker_obj.get_earnings_dates(limit=8)
+                if dates is not None and not dates.empty:
+                    for idx, row in dates.iterrows():
+                        date_str = idx.strftime("%Y-%m-%d")
+                        eps_est = row.get("EPS Estimate")
+                        eps_act = row.get("Reported EPS")
+                        history.append({
+                            "date": date_str,
+                            "eps_est": float(eps_est) if eps_est is not None and str(eps_est) != "nan" else None,
+                            "eps_actual": float(eps_act) if eps_act is not None and str(eps_act) != "nan" else None,
+                        })
+                    now = datetime.utcnow().strftime("%Y-%m-%d")
+                    future = [h for h in history if h["date"] >= now]
+                    if future:
+                        next_earnings = sorted(future, key=lambda h: h["date"])[0]["date"]
+            except Exception as inner:
+                logger.debug(f"get_earnings_dates failed for {ticker}: {inner}")
+
+            result = {
+                "ticker": ticker.upper(),
+                "next_earnings": next_earnings,
+                "history": history,
+            }
+            self.cache.set(cache_key, result, self.NEWS_CACHE_TTL)
+            return result
+
+        except Exception as e:
+            logger.warning(f"Error fetching earnings for {ticker}: {e}")
+            return {"ticker": ticker.upper(), "next_earnings": None, "history": []}
+
+    def get_economic_calendar(self) -> Dict[str, Any]:
+        """
+        Return a list of known major US economic events (next 60 days).
+        """
+        events = [
+            {"date": "2026-04-30", "time": "08:30 ET", "event": "Q1 GDP Advance", "importance": 3, "category": "GDP"},
+            {"date": "2026-05-02", "time": "08:30 ET", "event": "Nonfarm Payrolls (Apr)", "importance": 3, "category": "Employment"},
+            {"date": "2026-05-07", "time": "14:00 ET", "event": "FOMC Rate Decision", "importance": 3, "category": "Fed"},
+            {"date": "2026-05-13", "time": "08:30 ET", "event": "CPI (April)", "importance": 3, "category": "Inflation"},
+            {"date": "2026-05-15", "time": "08:30 ET", "event": "Retail Sales (Apr)", "importance": 2, "category": "Consumer"},
+            {"date": "2026-05-22", "time": "10:00 ET", "event": "Existing Home Sales", "importance": 2, "category": "Housing"},
+            {"date": "2026-05-30", "time": "08:30 ET", "event": "PCE Price Index (Apr)", "importance": 3, "category": "Inflation"},
+            {"date": "2026-06-06", "time": "08:30 ET", "event": "Nonfarm Payrolls (May)", "importance": 3, "category": "Employment"},
+            {"date": "2026-06-11", "time": "08:30 ET", "event": "CPI (May)", "importance": 3, "category": "Inflation"},
+            {"date": "2026-06-18", "time": "14:00 ET", "event": "FOMC Rate Decision", "importance": 3, "category": "Fed"},
+            {"date": "2026-06-27", "time": "08:30 ET", "event": "Q1 GDP Final", "importance": 2, "category": "GDP"},
+            {"date": "2026-07-03", "time": "08:30 ET", "event": "Nonfarm Payrolls (Jun)", "importance": 3, "category": "Employment"},
+            {"date": "2026-07-15", "time": "08:30 ET", "event": "CPI (June)", "importance": 3, "category": "Inflation"},
+            {"date": "2026-07-30", "time": "14:00 ET", "event": "FOMC Rate Decision", "importance": 3, "category": "Fed"},
+        ]
+
+        now = datetime.utcnow()
+        today_str = now.strftime("%Y-%m-%d")
+        horizon = (now + timedelta(days=60)).strftime("%Y-%m-%d")
+
+        upcoming = [e for e in events if today_str <= e["date"] <= horizon]
+        upcoming.sort(key=lambda e: e["date"])
+
+        return {"events": upcoming, "count": len(upcoming)}
+
     def get_news(self, ticker: Optional[str] = None) -> Dict[str, Any]:
         """
         Retrieve financial news headlines.
@@ -784,6 +859,32 @@ def movers():
             sector_data = client.get_sector_performance()
             ticker_data = sector_data.get(mover["ticker"], {})
             mover["price"] = ticker_data.get("price", 0)
+    return {"data": raw}
+
+
+@market_bp.route("/calendar", methods=["GET", "OPTIONS"])
+@_handle_errors
+def economic_calendar():
+    """
+    GET /api/markets/calendar
+
+    Returns {"data": [{date, time, event, importance, category}]}
+    """
+    client = _get_client()
+    raw = client.get_economic_calendar()
+    return {"data": raw.get("events", [])}
+
+
+@market_bp.route("/earnings/<ticker>", methods=["GET", "OPTIONS"])
+@_handle_errors
+def earnings(ticker):
+    """
+    GET /api/markets/earnings/<ticker>
+
+    Returns {"data": {ticker, next_earnings, history}}
+    """
+    client = _get_client()
+    raw = client.get_earnings_calendar(ticker)
     return {"data": raw}
 
 
