@@ -19,6 +19,7 @@ Dependencies:
 
 import json
 import logging
+import os
 import threading
 import time
 from datetime import datetime, timedelta
@@ -30,6 +31,14 @@ from flask import Blueprint, jsonify, request
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+# ----------------------------------------------------------------------------
+# Morningstar ingest cache file (written by scheduled Analytics Lab notebook)
+# ----------------------------------------------------------------------------
+MORNINGSTAR_STORE_PATH = os.environ.get(
+    "MORNINGSTAR_STORE_PATH", "/tmp/claris_morningstar.json"
+)
+_morningstar_lock = threading.RLock()
 
 
 # ============================================================================
@@ -936,6 +945,192 @@ def search():
             "exchange": item.get("exchange", "NYSE"),
         })
     return {"data": data}
+
+
+# ============================================================================
+# Morningstar Ingest (receives data from scheduled Analytics Lab notebook)
+# ============================================================================
+#
+# Architecture:
+#   1. Scheduled notebook in Morningstar Direct Analytics Lab runs daily at 7am ET
+#   2. Notebook pulls star ratings, Medalist, ESG, returns, fees for the watchlist
+#   3. Notebook POSTs a JSON payload to /api/markets/morningstar/ingest
+#   4. Payload is authenticated via X-Claris-Token header matching env var
+#      MORNINGSTAR_INGEST_TOKEN
+#   5. Claris caches the payload to disk and serves it back to the terminal
+#      via /api/markets/morningstar/<ticker> and /morningstar/all
+#
+# Expected payload shape:
+#   {
+#     "updated_at": "2026-04-20T11:00:00Z",
+#     "source": "morningstar-direct-analytics-lab",
+#     "tickers": {
+#       "SPY": {
+#         "name": "SPDR S&P 500 ETF Trust",
+#         "type": "etf",
+#         "star_rating": 4,
+#         "medalist_rating": "Silver",
+#         "medalist_pillars": {"parent": "Above Average",
+#                              "people": "Average",
+#                              "process": "High"},
+#         "esg_risk_score": null,
+#         "esg_risk_category": null,
+#         "carbon_risk_score": 3.27,
+#         "return_ytd": 5.1,
+#         "return_1y": 12.3,
+#         "return_3y": 9.8,
+#         "return_5y": 14.2,
+#         "return_10y": 11.9,
+#         "net_expense_ratio": 0.0945,
+#         "12_mo_yield": 1.22,
+#         "as_of": "2026-03-31"
+#       },
+#       "AAPL": {
+#         "name": "Apple Inc",
+#         "type": "stock",
+#         "star_rating": 3,
+#         "esg_risk_score": 15.31,
+#         "esg_risk_category": "Low",
+#         "carbon_risk_score": 3.27,
+#         "as_of": "2026-03-31"
+#       },
+#       ...
+#     }
+#   }
+# ----------------------------------------------------------------------------
+
+
+def _load_morningstar_store() -> Dict[str, Any]:
+    """Read the cached Morningstar payload from disk. Returns {} if missing."""
+    with _morningstar_lock:
+        try:
+            if not os.path.exists(MORNINGSTAR_STORE_PATH):
+                return {}
+            with open(MORNINGSTAR_STORE_PATH, "r") as f:
+                return json.load(f)
+        except Exception as e:
+            logger.warning(f"Could not read Morningstar store: {e}")
+            return {}
+
+
+def _save_morningstar_store(payload: Dict[str, Any]) -> None:
+    """Atomically persist the Morningstar payload to disk."""
+    with _morningstar_lock:
+        tmp_path = MORNINGSTAR_STORE_PATH + ".tmp"
+        with open(tmp_path, "w") as f:
+            json.dump(payload, f)
+        os.replace(tmp_path, MORNINGSTAR_STORE_PATH)
+
+
+@market_bp.route("/morningstar/ingest", methods=["POST", "OPTIONS"])
+def morningstar_ingest():
+    """
+    POST /api/markets/morningstar/ingest
+
+    Receives the daily payload from the scheduled Morningstar Direct
+    Analytics Lab notebook. Requires the X-Claris-Token header to match
+    env var MORNINGSTAR_INGEST_TOKEN. Without that env var set, ingest
+    is disabled (returns 503).
+    """
+    if request.method == "OPTIONS":
+        response = jsonify({})
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = (
+            "Content-Type, X-Claris-Token"
+        )
+        return response
+
+    expected_token = os.environ.get("MORNINGSTAR_INGEST_TOKEN")
+    if not expected_token:
+        return _add_cors_headers(
+            jsonify({"error": "ingest disabled: MORNINGSTAR_INGEST_TOKEN not set"})
+        ), 503
+
+    provided_token = request.headers.get("X-Claris-Token", "")
+    if provided_token != expected_token:
+        logger.warning("Morningstar ingest: invalid token")
+        return _add_cors_headers(jsonify({"error": "unauthorized"})), 401
+
+    try:
+        payload = request.get_json(force=True, silent=False)
+    except Exception as e:
+        return _add_cors_headers(
+            jsonify({"error": f"invalid JSON: {e}"})
+        ), 400
+
+    if not isinstance(payload, dict) or "tickers" not in payload:
+        return _add_cors_headers(
+            jsonify({"error": "payload must be an object with a 'tickers' key"})
+        ), 400
+
+    # Stamp server-side receipt time (the notebook's updated_at is preserved)
+    payload["received_at"] = datetime.utcnow().isoformat() + "Z"
+
+    _save_morningstar_store(payload)
+    logger.info(
+        f"Morningstar ingest: stored {len(payload.get('tickers', {}))} tickers"
+    )
+
+    response = jsonify({
+        "data": {
+            "ok": True,
+            "tickers_received": len(payload.get("tickers", {})),
+            "updated_at": payload.get("updated_at"),
+            "received_at": payload["received_at"],
+        }
+    })
+    return _add_cors_headers(response)
+
+
+@market_bp.route("/morningstar/all", methods=["GET", "OPTIONS"])
+@_handle_errors
+def morningstar_all():
+    """
+    GET /api/markets/morningstar/all
+
+    Returns the entire cached Morningstar payload:
+      {"data": {"updated_at": ..., "tickers": {...}}}
+    or {"data": null} if no ingest has happened yet.
+    """
+    store = _load_morningstar_store()
+    if not store:
+        return {"data": None}
+    return {"data": store}
+
+
+@market_bp.route("/morningstar/<ticker>", methods=["GET", "OPTIONS"])
+@_handle_errors
+def morningstar_ticker(ticker):
+    """
+    GET /api/markets/morningstar/<ticker>
+
+    Returns Morningstar data for a single ticker:
+      {"data": {ticker, updated_at, ...fields...}}
+    or {"data": null} if ticker is not in the cache.
+    """
+    ticker_upper = (ticker or "").upper().strip()
+    store = _load_morningstar_store()
+    if not store:
+        return {"data": None, "error": "no Morningstar data ingested yet"}
+
+    tickers = store.get("tickers", {})
+    # Try both exact and normalized (BRK-B vs BRK.B) matches
+    record = tickers.get(ticker_upper)
+    if record is None:
+        # Try replacing . with - and vice-versa
+        if "." in ticker_upper:
+            record = tickers.get(ticker_upper.replace(".", "-"))
+        elif "-" in ticker_upper:
+            record = tickers.get(ticker_upper.replace("-", "."))
+
+    if record is None:
+        return {"data": None}
+
+    out = {"ticker": ticker_upper}
+    out.update(record)
+    out["updated_at"] = store.get("updated_at")
+    return {"data": out}
 
 
 # ============================================================================
