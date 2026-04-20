@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CLARIS MARKET TERMINAL</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#000000;
+    --bg-1:#0a0a0a;
+    --bg-2:#111111;
+    --bg-3:#1a1a1a;
+    --border:#2a2a2a;
+    --border-hi:#3a3a3a;
+    --amber:#FFA500;
+    --amber-hi:#FFB800;
+    --amber-dim:#8a5a00;
+    --white:#e8e8e8;
+    --muted:#707070;
+    --green:#00C800;
+    --green-dim:#006400;
+    --red:#FF3030;
+    --red-dim:#8b0000;
+    --blue:#5DA9FF;
+    --mono:'Consolas','Menlo','Monaco','Courier New',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;width:100%;overflow:hidden}
+  body{
+    background:var(--bg);
+    color:var(--amber);
+    font-family:var(--mono);
+    font-size:12px;
+    line-height:1.3;
+    -webkit-font-smoothing:antialiased;
+    user-select:none;
+  }
+  input,textarea{user-select:text}
+  a{color:var(--amber);text-decoration:none}
+  a:hover{color:var(--amber-hi);text-decoration:underline}
+  ::-webkit-scrollbar{width:8px;height:8px}
+  ::-webkit-scrollbar-track{background:var(--bg-1)}
+  ::-webkit-scrollbar-thumb{background:var(--border-hi);border-radius:0}
+  ::-webkit-scrollbar-thumb:hover{background:var(--amber-dim)}
+
+  /* ===== TERMINAL SHELL ===== */
+  .terminal{
+    display:grid;
+    grid-template-rows:32px 28px 1fr 22px;
+    height:100vh;
+    width:100vw;
+    background:var(--bg);
+  }
+
+  /* ===== COMMAND BAR ===== */
+  .cmdbar{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:0 12px;
+    background:var(--bg-1);
+    border-bottom:1px solid var(--border);
+    font-size:12px;
+  }
+  .cmdbar .brand{
+    color:var(--amber-hi);
+    font-weight:700;
+    letter-spacing:0.08em;
+    padding-right:10px;
+    border-right:1px solid var(--border);
+  }
+  .cmdbar .input-wrap{
+    display:flex;
+    align-items:center;
+    background:var(--bg-2);
+    border:1px solid var(--border-hi);
+    padding:2px 8px;
+    flex:0 0 320px;
+  }
+  .cmdbar .input-wrap:focus-within{border-color:var(--amber)}
+  .cmdbar .input-prefix{color:var(--muted);margin-right:6px}
+  .cmdbar input[type=text]{
+    background:transparent;
+    border:none;
+    outline:none;
+    color:var(--amber-hi);
+    font-family:var(--mono);
+    font-size:12px;
+    text-transform:uppercase;
+    flex:1;
+    padding:2px 0;
+    letter-spacing:0.06em;
+  }
+  .cmdbar input[type=text]::placeholder{color:var(--muted)}
+  .cmdbar .go-btn{
+    background:var(--amber);
+    color:#000;
+    border:none;
+    padding:2px 10px;
+    font-family:var(--mono);
+    font-weight:700;
+    font-size:11px;
+    cursor:pointer;
+    letter-spacing:0.1em;
+  }
+  .cmdbar .go-btn:hover{background:var(--amber-hi)}
+  .cmdbar .status{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    color:var(--muted);
+    margin-left:auto;
+    font-size:11px;
+  }
+  .cmdbar .mkt-open{color:var(--green)}
+  .cmdbar .mkt-closed{color:var(--red)}
+  .cmdbar .clock{color:var(--white)}
+  .cmdbar .chat-link{
+    color:var(--blue);
+    border:1px solid var(--border-hi);
+    padding:2px 8px;
+    font-size:11px;
+  }
+  .cmdbar .chat-link:hover{border-color:var(--blue);background:rgba(93,169,255,0.08)}
+
+  /* ===== TICKER TAPE ===== */
+  .tape{
+    background:var(--bg-1);
+    border-bottom:1px solid var(--border);
+    overflow:hidden;
+    position:relative;
+  }
+  .tape-track{
+    display:flex;
+    gap:28px;
+    white-space:nowrap;
+    animation:tape-scroll 80s linear infinite;
+    will-change:transform;
+    padding:6px 0;
+  }
+  @keyframes tape-scroll{
+    from{transform:translateX(0)}
+    to{transform:translateX(-50%)}
+  }
+  .tape-item{
+    font-size:11px;
+    letter-spacing:0.04em;
+    display:inline-flex;
+    gap:6px;
+    align-items:center;
+  }
+  .tape-sym{color:var(--amber-hi);font-weight:700}
+  .tape-px{color:var(--white)}
+  .tape-chg.up{color:var(--green)}
+  .tape-chg.down{color:var(--red)}
+  .tape-sep{color:var(--border-hi)}
+
+  /* ===== MAIN BODY GRID ===== */
+  .body{
+    display:grid;
+    grid-template-columns:240px 1fr 360px;
+    overflow:hidden;
+    min-height:0;
+  }
+
+  /* ===== PANEL BASE ===== */
+  .panel{
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+    background:var(--bg);
+    border-right:1px solid var(--border);
+    overflow:hidden;
+  }
+  .panel:last-child{border-right:none}
+  .panel-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    height:22px;
+    padding:0 8px;
+    background:var(--bg-2);
+    border-bottom:1px solid var(--border);
+    color:var(--amber-hi);
+    font-size:10px;
+    font-weight:700;
+    letter-spacing:0.12em;
+    flex:0 0 auto;
+  }
+  .panel-header .actions{display:flex;gap:6px}
+  .panel-header .actions button{
+    background:transparent;
+    border:1px solid var(--border-hi);
+    color:var(--muted);
+    font-family:var(--mono);
+    font-size:10px;
+    padding:0 5px;
+    cursor:pointer;
+    letter-spacing:0.08em;
+  }
+  .panel-header .actions button:hover{color:var(--amber);border-color:var(--amber-dim)}
+  .panel-body{flex:1 1 auto;overflow:auto;min-height:0}
+  .panel-row{
+    border-bottom:1px solid var(--border);
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+  }
+  .panel-row:last-child{border-bottom:none}
+
+  /* ===== WATCHLIST (left column) ===== */
+  .wl-add{
+    display:flex;
+    gap:0;
+    padding:6px 8px;
+    border-bottom:1px solid var(--border);
+    background:var(--bg-1);
+  }
+  .wl-add input{
+    flex:1;
+    background:var(--bg-2);
+    border:1px solid var(--border-hi);
+    color:var(--amber-hi);
+    font-family:var(--mono);
+    font-size:11px;
+    padding:2px 6px;
+    text-transform:uppercase;
+    outline:none;
+    letter-spacing:0.06em;
+  }
+  .wl-add input:focus{border-color:var(--amber)}
+  .wl-add button{
+    background:var(--amber);
+    color:#000;
+    border:none;
+    padding:0 8px;
+    font-family:var(--mono);
+    font-weight:700;
+    font-size:11px;
+    cursor:pointer;
+  }
+  .wl-add button:hover{background:var(--amber-hi)}
+  .wl-list{display:flex;flex-direction:column}
+  .wl-item{
+    display:grid;
+    grid-template-columns:1fr auto 14px;
+    gap:6px;
+    align-items:center;
+    padding:4px 8px;
+    border-bottom:1px solid var(--bg-3);
+    cursor:pointer;
+    font-size:11px;
+    transition:background 0.08s;
+  }
+  .wl-item:hover{background:var(--bg-2)}
+  .wl-item.active{background:var(--bg-3);border-left:2px solid var(--amber);padding-left:6px}
+  .wl-item .wl-sym{color:var(--amber-hi);font-weight:700;letter-spacing:0.04em}
+  .wl-item.active .wl-sym{color:#FFF}
+  .wl-item .wl-px{color:var(--white);font-variant-numeric:tabular-nums}
+  .wl-item .wl-chg{font-size:10px;font-variant-numeric:tabular-nums;text-align:right}
+  .wl-item .wl-chg.up{color:var(--green)}
+  .wl-item .wl-chg.down{color:var(--red)}
+  .wl-item .wl-px-wrap{text-align:right}
+  .wl-item .wl-del{
+    color:var(--muted);
+    font-size:11px;
+    visibility:hidden;
+    cursor:pointer;
+    background:none;
+    border:none;
+    padding:0;
+  }
+  .wl-item:hover .wl-del{visibility:visible}
+  .wl-item .wl-del:hover{color:var(--red)}
+  .wl-empty{padding:16px 8px;text-align:center;color:var(--muted);font-size:11px}
+
+  /* ===== CENTER COLUMN ===== */
+  .center{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+  .quote-header{
+    padding:10px 14px;
+    border-bottom:1px solid var(--border);
+    background:var(--bg-1);
+    flex:0 0 auto;
+  }
+  .qh-row1{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  .qh-sym{font-size:26px;font-weight:700;color:var(--amber-hi);letter-spacing:0.04em}
+  .qh-name{font-size:11px;color:var(--muted);letter-spacing:0.04em;text-transform:uppercase}
+  .qh-exch{font-size:10px;color:var(--muted);border:1px solid var(--border-hi);padding:1px 5px;letter-spacing:0.1em}
+  .qh-row2{display:flex;align-items:baseline;gap:16px;margin-top:4px;flex-wrap:wrap}
+  .qh-px{font-size:32px;font-weight:700;color:var(--white);font-variant-numeric:tabular-nums;letter-spacing:0.02em}
+  .qh-chg{font-size:14px;font-variant-numeric:tabular-nums;font-weight:600}
+  .qh-chg.up{color:var(--green)}
+  .qh-chg.down{color:var(--red)}
+  .qh-arrow{font-size:12px;margin-right:2px}
+  .qh-updated{font-size:10px;color:var(--muted);margin-left:auto;letter-spacing:0.05em}
+
+  .stats-bar{
+    display:grid;
+    grid-template-columns:repeat(7,1fr);
+    border-bottom:1px solid var(--border);
+    background:var(--bg-1);
+    flex:0 0 auto;
+  }
+  .stat{
+    padding:6px 10px;
+    border-right:1px solid var(--border);
+    min-height:42px;
+  }
+  .stat:last-child{border-right:none}
+  .stat-label{color:var(--muted);font-size:9px;letter-spacing:0.1em;text-transform:uppercase}
+  .stat-val{color:var(--white);font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:2px}
+  .stat-val.amber{color:var(--amber-hi)}
+  .stat-val.green{color:var(--green)}
+  .stat-val.red{color:var(--red)}
+
+  .chart-wrap{
+    flex:1 1 auto;
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+    position:relative;
+  }
+  .chart-toolbar{
+    display:flex;
+    align-items:center;
+    gap:0;
+    padding:4px 8px;
+    border-bottom:1px solid var(--border);
+    background:var(--bg-1);
+    flex:0 0 auto;
+  }
+  .chart-toolbar .label{color:var(--muted);font-size:10px;letter-spacing:0.1em;margin-right:10px}
+  .period-btn{
+    background:transparent;
+    border:1px solid var(--border);
+    color:var(--muted);
+    font-family:var(--mono);
+    font-size:10px;
+    padding:2px 8px;
+    cursor:pointer;
+    letter-spacing:0.1em;
+    margin-right:-1px;
+  }
+  .period-btn:hover{color:var(--amber);border-color:var(--amber-dim)}
+  .period-btn.active{background:var(--amber);color:#000;border-color:var(--amber);font-weight:700}
+  .chart-canvas-wrap{flex:1 1 auto;position:relative;padding:8px 10px;min-height:0}
+  .chart-canvas-wrap canvas{width:100%!important;height:100%!important}
+  .range-52w{
+    border-top:1px solid var(--border);
+    padding:8px 14px;
+    background:var(--bg-1);
+    flex:0 0 auto;
+  }
+  .range-label{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);letter-spacing:0.1em;margin-bottom:4px}
+  .range-label .hi{color:var(--green)}
+  .range-label .lo{color:var(--red)}
+  .range-track{
+    position:relative;
+    height:6px;
+    background:linear-gradient(90deg,var(--red-dim),var(--amber-dim),var(--green-dim));
+    border:1px solid var(--border-hi);
+  }
+  .range-thumb{
+    position:absolute;
+    top:-3px;
+    width:3px;
+    height:12px;
+    background:var(--amber-hi);
+    box-shadow:0 0 6px var(--amber);
+    transform:translateX(-50%);
+  }
+  .range-nums{display:flex;justify-content:space-between;margin-top:3px;font-size:10px;color:var(--white);font-variant-numeric:tabular-nums}
+
+  /* ===== RIGHT COLUMN ===== */
+  .right{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+  .right .panel-row{flex:1 1 auto}
+
+  /* ===== MOVERS / SECTORS ===== */
+  .ms-tabs{display:flex;border-bottom:1px solid var(--border);background:var(--bg-1);flex:0 0 auto}
+  .ms-tab{
+    flex:1;
+    padding:4px 8px;
+    background:transparent;
+    border:none;
+    border-right:1px solid var(--border);
+    color:var(--muted);
+    font-family:var(--mono);
+    font-size:10px;
+    font-weight:700;
+    letter-spacing:0.12em;
+    cursor:pointer;
+  }
+  .ms-tab:last-child{border-right:none}
+  .ms-tab.active{background:var(--bg-3);color:var(--amber-hi);border-bottom:1px solid var(--amber)}
+  .ms-tab:hover:not(.active){color:var(--amber)}
+  .ms-body{flex:1 1 auto;overflow:auto;min-height:0}
+  .ms-list{display:flex;flex-direction:column}
+  .ms-row{
+    display:grid;
+    grid-template-columns:60px 1fr auto;
+    gap:8px;
+    align-items:center;
+    padding:3px 8px;
+    border-bottom:1px solid var(--bg-3);
+    font-size:11px;
+    cursor:pointer;
+  }
+  .ms-row:hover{background:var(--bg-2)}
+  .ms-sym{color:var(--amber-hi);font-weight:700;letter-spacing:0.04em}
+  .ms-name{color:var(--muted);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ms-chg{text-align:right;font-variant-numeric:tabular-nums;font-size:11px;font-weight:600}
+  .ms-chg.up{color:var(--green)}
+  .ms-chg.down{color:var(--red)}
+  .ms-section-label{
+    padding:4px 8px;
+    background:var(--bg-2);
+    color:var(--amber);
+    font-size:10px;
+    font-weight:700;
+    letter-spacing:0.14em;
+    border-bottom:1px solid var(--border);
+  }
+
+  /* ===== CALENDAR ===== */
+  .cal-list{display:flex;flex-direction:column}
+  .cal-row{
+    display:grid;
+    grid-template-columns:56px 1fr auto;
+    gap:8px;
+    align-items:start;
+    padding:4px 8px;
+    border-bottom:1px solid var(--bg-3);
+    font-size:11px;
+  }
+  .cal-date{color:var(--amber);font-weight:700;font-size:10px;letter-spacing:0.04em}
+  .cal-event{color:var(--white);line-height:1.25}
+  .cal-event .cal-sub{color:var(--muted);font-size:10px;margin-top:1px}
+  .cal-imp{color:var(--amber-hi);font-size:10px;text-align:right;white-space:nowrap}
+  .cal-imp.hi{color:var(--red)}
+  .cal-imp.md{color:var(--amber)}
+  .cal-imp.lo{color:var(--muted)}
+
+  /* ===== NEWS ===== */
+  .news-list{display:flex;flex-direction:column}
+  .news-row{
+    padding:5px 8px;
+    border-bottom:1px solid var(--bg-3);
+    font-size:11px;
+    cursor:pointer;
+    line-height:1.35;
+  }
+  .news-row:hover{background:var(--bg-2)}
+  .news-time{color:var(--amber);font-size:10px;font-weight:700;letter-spacing:0.04em}
+  .news-title{color:var(--white);margin-top:1px}
+  .news-src{color:var(--muted);font-size:10px;margin-top:1px}
+
+  /* ===== STATUS BAR ===== */
+  .statusbar{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:0 12px;
+    background:var(--bg-1);
+    border-top:1px solid var(--border);
+    color:var(--muted);
+    font-size:10px;
+    letter-spacing:0.08em;
+  }
+  .statusbar .live{
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    color:var(--green);
+    font-weight:700;
+  }
+  .statusbar .live-dot{
+    width:6px;height:6px;border-radius:50%;
+    background:var(--green);
+    box-shadow:0 0 4px var(--green);
+    animation:pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.35}}
+  .statusbar .sep{color:var(--border-hi)}
+  .statusbar .right{margin-left:auto;display:flex;gap:14px}
+
+  /* ===== LOADING / EMPTY ===== */
+  .loading{padding:12px;color:var(--muted);font-size:11px;text-align:center;letter-spacing:0.1em}
+  .empty{padding:12px;color:var(--muted);font-size:11px;text-align:center}
+
+  /* Toast */
+  .toast{
+    position:fixed;
+    bottom:32px;
+    right:16px;
+    background:var(--bg-2);
+    border:1px solid var(--amber);
+    color:var(--amber-hi);
+    padding:6px 12px;
+    font-size:11px;
+    letter-spacing:0.06em;
+    z-index:1000;
+    opacity:0;
+    transition:opacity 0.2s;
+    pointer-events:none;
+  }
+  .toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="terminal">
+
+  <!-- ===== COMMAND BAR ===== -->
+  <div class="cmdbar">
+    <div class="brand">CLARIS&nbsp;TERMINAL</div>
+    <div class="input-wrap">
+      <span class="input-prefix">&gt;</span>
+      <input id="cmdInput" type="text" placeholder="TICKER &lt;GO&gt;" autocomplete="off" spellcheck="false">
+    </div>
+    <button class="go-btn" id="goBtn">&lt;GO&gt;</button>
+    <div class="status">
+      <span id="mktStatus" class="mkt-closed">● MARKET</span>
+      <span class="sep">|</span>
+      <span class="clock" id="clock">--:--:-- ET</span>
+    </div>
+    <a class="chat-link" href="/persona/chat">&larr; CHAT</a>
+  </div>
+
+  <!-- ===== TICKER TAPE ===== -->
+  <div class="tape">
+    <div class="tape-track" id="tapeTrack"></div>
+  </div>
+
+  <!-- ===== BODY GRID ===== -->
+  <div class="body">
+
+    <!-- LEFT: WATCHLIST -->
+    <div class="panel">
+      <div class="panel-header">
+        <span>WATCHLIST</span>
+        <div class="actions">
+          <button id="wlReset" title="Reset to default">RESET</button>
+        </div>
+      </div>
+      <div class="wl-add">
+        <input id="wlInput" type="text" placeholder="+ ADD TICKER" maxlength="10">
+        <button id="wlAddBtn">+</button>
+      </div>
+      <div class="panel-body">
+        <div class="wl-list" id="wlList"><div class="loading">LOADING...</div></div>
+      </div>
+    </div>
+
+    <!-- CENTER: QUOTE + CHART -->
+    <div class="panel center">
+      <div class="quote-header">
+        <div class="qh-row1">
+          <span class="qh-sym" id="qSym">—</span>
+          <span class="qh-name" id="qName">loading...</span>
+          <span class="qh-exch" id="qExch" style="display:none"></span>
+          <span class="qh-updated" id="qUpd"></span>
+        </div>
+        <div class="qh-row2">
+          <span class="qh-px" id="qPx">0.00</span>
+          <span class="qh-chg" id="qChg">—</span>
+        </div>
+      </div>
+
+      <div class="stats-bar">
+        <div class="stat"><div class="stat-label">Open</div><div class="stat-val" id="sOpen">—</div></div>
+        <div class="stat"><div class="stat-label">High</div><div class="stat-val green" id="sHigh">—</div></div>
+        <div class="stat"><div class="stat-label">Low</div><div class="stat-val red" id="sLow">—</div></div>
+        <div class="stat"><div class="stat-label">Volume</div><div class="stat-val" id="sVol">—</div></div>
+        <div class="stat"><div class="stat-label">Mkt Cap</div><div class="stat-val" id="sCap">—</div></div>
+        <div class="stat"><div class="stat-label">P/E</div><div class="stat-val" id="sPe">—</div></div>
+        <div class="stat"><div class="stat-label">Div Yld</div><div class="stat-val amber" id="sDiv">—</div></div>
+      </div>
+
+      <div class="chart-wrap">
+        <div class="chart-toolbar">
+          <span class="label">PERIOD</span>
+          <button class="period-btn active" data-period="1D">1D</button>
+          <button class="period-btn" data-period="5D">5D</button>
+          <button class="period-btn" data-period="1M">1M</button>
+          <button class="period-btn" data-period="3M">3M</button>
+          <button class="period-btn" data-period="6M">6M</button>
+          <button class="period-btn" data-period="1Y">1Y</button>
+          <button class="period-btn" data-period="5Y">5Y</button>
+        </div>
+        <div class="chart-canvas-wrap">
+          <canvas id="priceChart"></canvas>
+        </div>
+        <div class="range-52w">
+          <div class="range-label">
+            <span class="lo">52W LOW</span>
+            <span style="color:var(--muted)">52-WEEK RANGE</span>
+            <span class="hi">52W HIGH</span>
+          </div>
+          <div class="range-track"><div class="range-thumb" id="rangeThumb" style="left:50%"></div></div>
+          <div class="range-nums">
+            <span id="rangeLo">—</span>
+            <span id="rangeCur">—</span>
+            <span id="rangeHi">—</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: MOVERS + CALENDAR + NEWS -->
+    <div class="panel right">
+      <!-- MOVERS/SECTORS -->
+      <div class="panel-row" style="flex:1 1 34%">
+        <div class="panel-header"><span id="msTitle">MARKETS</span></div>
+        <div class="ms-tabs">
+          <button class="ms-tab active" data-ms="gainers">GAINERS</button>
+          <button class="ms-tab" data-ms="losers">LOSERS</button>
+          <button class="ms-tab" data-ms="sectors">SECTORS</button>
+        </div>
+        <div class="ms-body" id="msBody"><div class="loading">LOADING...</div></div>
+      </div>
+
+      <!-- CALENDAR -->
+      <div class="panel-row" style="flex:1 1 33%">
+        <div class="panel-header"><span>ECON CALENDAR / EARNINGS</span></div>
+        <div class="panel-body" id="calBody"><div class="loading">LOADING...</div></div>
+      </div>
+
+      <!-- NEWS -->
+      <div class="panel-row" style="flex:1 1 33%">
+        <div class="panel-header"><span>HEADLINES</span></div>
+        <div class="panel-body" id="newsBody"><div class="loading">LOADING...</div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== STATUS BAR ===== -->
+  <div class="statusbar">
+    <span class="live"><span class="live-dot"></span>LIVE</span>
+    <span class="sep">|</span>
+    <span>DATA: yfinance</span>
+    <span class="sep">|</span>
+    <span id="statusUpdated">LAST UPDATE: —</span>
+    <div class="right">
+      <span>F1: FOCUS CMD &nbsp; ESC: CLEAR &nbsp; ENTER: GO</span>
+      <span class="sep">|</span>
+      <span>SKYVIEW INVESTMENT ADVISORS</span>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===========================================================
+   CLARIS MARKET TERMINAL — Bloomberg-style (v3)
+   =========================================================== */
+
+const API = "/api/markets";
+const DEFAULT_WATCHLIST = ["SPY","QQQ","DIA","AAPL","MSFT","NVDA","AMZN","GOOGL","TSLA","META","JPM","BRK-B"];
+const SECTOR_TICKERS = ["XLK","XLF","XLV","XLY","XLP","XLE","XLI","XLU","XLB","XLRE","XLC"];
+const SECTOR_NAMES = {
+  "XLK":"Technology","XLF":"Financials","XLV":"Health Care","XLY":"Consumer Disc.",
+  "XLP":"Consumer Staples","XLE":"Energy","XLI":"Industrials","XLU":"Utilities",
+  "XLB":"Materials","XLRE":"Real Estate","XLC":"Communication"
+};
+
+const State = {
+  ticker: "SPY",
+  period: "1D",
+  watchlist: [],
+  chart: null,
+  tapeRendered: false,
+  msTab: "gainers",
+  sectors: [],
+  movers: {gainers:[],losers:[]},
+  wlQuotes: {}
+};
+
+/* ---------- UTILITY ---------- */
+const $ = (id) => document.getElementById(id);
+
+function fmtNum(v, dec=2){
+  if (v === null || v === undefined || v === "" || isNaN(v)) return "—";
+  const n = Number(v);
+  return n.toLocaleString("en-US",{minimumFractionDigits:dec,maximumFractionDigits:dec});
+}
+function fmtCompact(v){
+  if (v === null || v === undefined || v === "" || isNaN(v)) return "—";
+  const n = Number(v);
+  if (Math.abs(n) >= 1e12) return (n/1e12).toFixed(2)+"T";
+  if (Math.abs(n) >= 1e9) return (n/1e9).toFixed(2)+"B";
+  if (Math.abs(n) >= 1e6) return (n/1e6).toFixed(2)+"M";
+  if (Math.abs(n) >= 1e3) return (n/1e3).toFixed(2)+"K";
+  return n.toFixed(0);
+}
+function fmtPct(v){
+  if (v === null || v === undefined || isNaN(v)) return "—";
+  const n = Number(v);
+  return (n>=0?"+":"") + n.toFixed(2) + "%";
+}
+function fmtSignedCurrency(v){
+  if (v === null || v === undefined || isNaN(v)) return "—";
+  const n = Number(v);
+  return (n>=0?"+":"") + n.toFixed(2);
+}
+function timeAgo(iso){
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d)) return "—";
+  const s = Math.floor((Date.now() - d.getTime())/1000);
+  if (s < 60) return s+"s";
+  if (s < 3600) return Math.floor(s/60)+"m";
+  if (s < 86400) return Math.floor(s/3600)+"h";
+  return Math.floor(s/86400)+"d";
+}
+function fmtDateShort(iso){
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d)) return "—";
+  const mo = d.toLocaleString("en-US",{month:"short"}).toUpperCase();
+  return `${mo} ${d.getDate()}`;
+}
+function toast(msg){
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(()=>t.classList.remove("show"), 2000);
+}
+async function api(path){
+  try {
+    const r = await fetch(API + path, {cache:"no-store"});
+    if (!r.ok) throw new Error("HTTP "+r.status);
+    const j = await r.json();
+    return j && j.data !== undefined ? j.data : j;
+  } catch(e){
+    console.warn("api fail", path, e);
+    return null;
+  }
+}
+
+/* ---------- CLOCK + MARKET STATUS ---------- */
+function updateClock(){
+  const now = new Date();
+  const opts = {timeZone:"America/New_York",hour12:false,hour:"2-digit",minute:"2-digit",second:"2-digit"};
+  const s = now.toLocaleTimeString("en-US", opts);
+  $("clock").textContent = s + " ET";
+
+  // market open check — using ET
+  const etNow = new Date(now.toLocaleString("en-US",{timeZone:"America/New_York"}));
+  const day = etNow.getDay();
+  const mins = etNow.getHours()*60 + etNow.getMinutes();
+  const isOpen = day>=1 && day<=5 && mins>=(9*60+30) && mins<(16*60);
+  const el = $("mktStatus");
+  if (isOpen){
+    el.textContent = "● MARKET OPEN";
+    el.className = "mkt-open";
+  } else {
+    el.textContent = "● MARKET CLOSED";
+    el.className = "mkt-closed";
+  }
+}
+
+/* ---------- WATCHLIST ---------- */
+function loadWatchlist(){
+  try {
+    const raw = localStorage.getItem("claris_watchlist");
+    if (raw){
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr) && arr.length) return arr;
+    }
+  } catch(e){}
+  return [...DEFAULT_WATCHLIST];
+}
+function saveWatchlist(){
+  try { localStorage.setItem("claris_watchlist", JSON.stringify(State.watchlist)); } catch(e){}
+}
+function renderWatchlist(){
+  const list = $("wlList");
+  if (!State.watchlist.length){
+    list.innerHTML = '<div class="wl-empty">Watchlist empty<br>Add a ticker above</div>';
+    return;
+  }
+  // Build/update in-place
+  const existing = new Map();
+  list.querySelectorAll(".wl-item").forEach(el => existing.set(el.dataset.t, el));
+  const seen = new Set();
+  const frag = document.createDocumentFragment();
+  State.watchlist.forEach(t => {
+    seen.add(t);
+    const q = State.wlQuotes[t];
+    const px = q && q.price != null ? fmtNum(q.price) : "—";
+    const chg = q && q.change_percent != null ? fmtPct(q.change_percent) : "—";
+    const up = q && q.change_percent != null && q.change_percent >= 0;
+    let el = existing.get(t);
+    if (!el){
+      el = document.createElement("div");
+      el.className = "wl-item" + (t===State.ticker?" active":"");
+      el.dataset.t = t;
+      el.innerHTML = `
+        <span class="wl-sym">${t}</span>
+        <div class="wl-px-wrap">
+          <div class="wl-px">${px}</div>
+          <div class="wl-chg ${up?"up":"down"}">${chg}</div>
+        </div>
+        <button class="wl-del" title="Remove">✕</button>`;
+      el.addEventListener("click", (e) => {
+        if (e.target.classList.contains("wl-del")) return;
+        loadTicker(t);
+      });
+      el.querySelector(".wl-del").addEventListener("click", (e) => {
+        e.stopPropagation();
+        removeFromWatchlist(t);
+      });
+    } else {
+      el.className = "wl-item" + (t===State.ticker?" active":"");
+      el.querySelector(".wl-px").textContent = px;
+      const cEl = el.querySelector(".wl-chg");
+      cEl.textContent = chg;
+      cEl.className = "wl-chg " + (up?"up":"down");
+    }
+    frag.appendChild(el);
+  });
+  // Remove stale
+  existing.forEach((el,t) => { if (!seen.has(t)) el.remove(); });
+  list.innerHTML = "";
+  list.appendChild(frag);
+}
+function addToWatchlist(t){
+  t = (t||"").trim().toUpperCase();
+  if (!t) return;
+  if (State.watchlist.includes(t)){
+    toast(t + " ALREADY IN WATCHLIST");
+    return;
+  }
+  State.watchlist.push(t);
+  saveWatchlist();
+  renderWatchlist();
+  refreshWatchlistQuotes();
+  toast(t + " ADDED");
+}
+function removeFromWatchlist(t){
+  State.watchlist = State.watchlist.filter(x => x !== t);
+  saveWatchlist();
+  renderWatchlist();
+  toast(t + " REMOVED");
+}
+async function refreshWatchlistQuotes(){
+  if (!State.watchlist.length) return;
+  const tickers = State.watchlist.join(",");
+  const data = await api(`/snapshot?tickers=${encodeURIComponent(tickers)}`);
+  if (Array.isArray(data)){
+    const map = {};
+    data.forEach(q => { if (q && q.ticker) map[q.ticker] = q; });
+    State.wlQuotes = map;
+    renderWatchlist();
+  }
+}
+
+/* ---------- TICKER TAPE ---------- */
+async function loadTape(){
+  const tapeTickers = [...DEFAULT_WATCHLIST];
+  const data = await api(`/snapshot?tickers=${encodeURIComponent(tapeTickers.join(","))}`);
+  if (!Array.isArray(data) || !data.length) return;
+
+  const track = $("tapeTrack");
+  if (State.tapeRendered){
+    // update values in place only — don't touch DOM structure (prevents flicker/animation restart)
+    const items = track.querySelectorAll(".tape-item");
+    const m = {};
+    data.forEach(q => { if (q && q.ticker) m[q.ticker] = q; });
+    items.forEach(it => {
+      const t = it.dataset.t;
+      if (!m[t]) return;
+      const q = m[t];
+      it.querySelector(".tape-px").textContent = fmtNum(q.price);
+      const chg = it.querySelector(".tape-chg");
+      const up = q.change_percent >= 0;
+      chg.textContent = (up?"▲ ":"▼ ") + fmtPct(q.change_percent);
+      chg.className = "tape-chg " + (up?"up":"down");
+    });
+    return;
+  }
+
+  // Initial render — duplicate items for seamless loop
+  const build = (q) => {
+    const up = q.change_percent >= 0;
+    return `<span class="tape-item" data-t="${q.ticker}">
+      <span class="tape-sym">${q.ticker}</span>
+      <span class="tape-px">${fmtNum(q.price)}</span>
+      <span class="tape-chg ${up?"up":"down"}">${up?"▲ ":"▼ "}${fmtPct(q.change_percent)}</span>
+      <span class="tape-sep">|</span>
+    </span>`;
+  };
+  const one = data.map(build).join("");
+  track.innerHTML = one + one; // double for scroll loop
+  State.tapeRendered = true;
+}
+
+/* ---------- QUOTE + CHART (center) ---------- */
+async function loadQuote(){
+  const q = await api(`/quote/${State.ticker}`);
+  if (!q){
+    $("qName").textContent = "Failed to load";
+    return;
+  }
+  $("qSym").textContent = q.ticker || State.ticker;
+  $("qName").textContent = q.name || q.longName || q.shortName || "—";
+  const exch = q.exchange || "";
+  const exEl = $("qExch");
+  if (exch){ exEl.style.display=""; exEl.textContent = exch; } else { exEl.style.display="none"; }
+  $("qPx").textContent = fmtNum(q.price);
+  $("qUpd").textContent = "UPDATED " + new Date().toLocaleTimeString("en-US",{hour12:false});
+
+  const up = (q.change || 0) >= 0;
+  const chg = $("qChg");
+  chg.className = "qh-chg " + (up?"up":"down");
+  chg.innerHTML = `<span class="qh-arrow">${up?"▲":"▼"}</span>${fmtSignedCurrency(q.change)} (${fmtPct(q.change_percent)})`;
+
+  // Stats
+  $("sOpen").textContent = fmtNum(q.open);
+  $("sHigh").textContent = fmtNum(q.day_high ?? q.high);
+  $("sLow").textContent = fmtNum(q.day_low ?? q.low);
+  $("sVol").textContent = fmtCompact(q.volume);
+  $("sCap").textContent = fmtCompact(q.market_cap);
+  $("sPe").textContent = q.pe_ratio != null ? fmtNum(q.pe_ratio, 1) : "—";
+  const dy = q.dividend_yield;
+  $("sDiv").textContent = dy != null && !isNaN(dy) ? (Number(dy)*100).toFixed(2)+"%" : "—";
+
+  // 52-week range
+  const lo = q.low_52w, hi = q.high_52w, px = q.price;
+  if (lo != null && hi != null && hi > lo && px != null){
+    const pct = Math.max(0, Math.min(100, ((px-lo)/(hi-lo))*100));
+    $("rangeThumb").style.left = pct+"%";
+    $("rangeLo").textContent = fmtNum(lo);
+    $("rangeHi").textContent = fmtNum(hi);
+    $("rangeCur").textContent = fmtNum(px);
+  }
+
+  $("statusUpdated").textContent = "LAST UPDATE: " + new Date().toLocaleTimeString("en-US",{hour12:false}) + " ET";
+
+  // Update earnings in stats-bar via earnings endpoint (async, non-blocking)
+  loadEarningsStat();
+}
+
+async function loadEarningsStat(){
+  // Not displayed in the 7-stat bar currently; earnings shown in calendar.
+  // Reserved for future enhancement.
+}
+
+async function loadChart(){
+  const data = await api(`/historical/${State.ticker}?period=${State.period}`);
+  const canvas = $("priceChart");
+  if (!Array.isArray(data) || !data.length){
+    if (State.chart){ State.chart.destroy(); State.chart = null; }
+    return;
+  }
+  const labels = data.map(d => {
+    const dt = new Date(d.date || d.time || d.timestamp);
+    if (State.period === "1D" || State.period === "5D"){
+      return dt.toLocaleTimeString("en-US",{hour12:false,hour:"2-digit",minute:"2-digit"});
+    }
+    return dt.toLocaleDateString("en-US",{month:"short",day:"numeric"});
+  });
+  const prices = data.map(d => d.close ?? d.price);
+  const first = prices[0], last = prices[prices.length-1];
+  const up = last >= first;
+  const color = up ? "#00C800" : "#FF3030";
+  const colorFill = up ? "rgba(0,200,0,0.12)" : "rgba(255,48,48,0.12)";
+
+  if (State.chart){
+    State.chart.data.labels = labels;
+    State.chart.data.datasets[0].data = prices;
+    State.chart.data.datasets[0].borderColor = color;
+    State.chart.data.datasets[0].backgroundColor = colorFill;
+    State.chart.update("none");
+    return;
+  }
+
+  const ctx = canvas.getContext("2d");
+  State.chart = new Chart(ctx, {
+    type:"line",
+    data:{labels, datasets:[{
+      data: prices,
+      borderColor: color,
+      backgroundColor: colorFill,
+      borderWidth: 1.5,
+      fill: true,
+      tension: 0.05,
+      pointRadius: 0,
+      pointHoverRadius: 3,
+      pointHoverBackgroundColor: "#FFA500",
+    }]},
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      animation:false,
+      interaction:{mode:"index",intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:"#111",
+          titleColor:"#FFA500",
+          bodyColor:"#fff",
+          borderColor:"#3a3a3a",
+          borderWidth:1,
+          titleFont:{family:"Consolas, monospace",size:11,weight:"700"},
+          bodyFont:{family:"Consolas, monospace",size:11},
+          padding:8,
+          displayColors:false,
+          callbacks:{ label: (ctx) => "  $" + Number(ctx.parsed.y).toFixed(2) }
+        }
+      },
+      scales:{
+        x:{
+          grid:{color:"#1a1a1a",drawTicks:false},
+          ticks:{color:"#707070",font:{family:"Consolas, monospace",size:9},maxRotation:0,autoSkipPadding:30}
+        },
+        y:{
+          position:"right",
+          grid:{color:"#1a1a1a",drawTicks:false},
+          ticks:{color:"#707070",font:{family:"Consolas, monospace",size:9},callback:v=>"$"+Number(v).toFixed(0)}
+        }
+      }
+    }
+  });
+}
+
+/* ---------- MOVERS / SECTORS ---------- */
+async function loadMovers(){
+  const m = await api("/movers");
+  if (m && typeof m === "object"){
+    State.movers.gainers = Array.isArray(m.gainers) ? m.gainers : [];
+    State.movers.losers = Array.isArray(m.losers) ? m.losers : [];
+  }
+  renderMS();
+}
+async function loadSectors(){
+  const s = await api("/sectors");
+  if (Array.isArray(s)) State.sectors = s;
+  renderMS();
+}
+function renderMS(){
+  const body = $("msBody");
+  const tab = State.msTab;
+  let rows = [];
+  if (tab === "gainers"){
+    rows = State.movers.gainers.map(x => ({
+      sym: x.ticker, name: SECTOR_NAMES[x.ticker] || x.name || "",
+      chg: x.change_percent ?? x.change_pct ?? x.changePercent, up: true
+    }));
+  } else if (tab === "losers"){
+    rows = State.movers.losers.map(x => ({
+      sym: x.ticker, name: SECTOR_NAMES[x.ticker] || x.name || "",
+      chg: x.change_percent ?? x.change_pct ?? x.changePercent, up: false
+    }));
+  } else {
+    rows = State.sectors.map(x => ({
+      sym: x.ticker, name: SECTOR_NAMES[x.ticker] || x.name || "",
+      chg: x.change_percent
+    }));
+  }
+  if (!rows.length){ body.innerHTML = '<div class="empty">No data</div>'; return; }
+  body.innerHTML = '<div class="ms-list">' + rows.map(r => {
+    const up = (r.chg ?? 0) >= 0;
+    return `<div class="ms-row" data-t="${r.sym}">
+      <span class="ms-sym">${r.sym}</span>
+      <span class="ms-name">${r.name || ""}</span>
+      <span class="ms-chg ${up?"up":"down"}">${fmtPct(r.chg)}</span>
+    </div>`;
+  }).join("") + '</div>';
+  body.querySelectorAll(".ms-row").forEach(el => {
+    el.addEventListener("click", () => loadTicker(el.dataset.t));
+  });
+}
+
+/* ---------- CALENDAR (econ + earnings) ---------- */
+async function loadCalendar(){
+  const [econ, earn] = await Promise.all([
+    api("/calendar"),
+    api(`/earnings/${State.ticker}`)
+  ]);
+  const body = $("calBody");
+  const rows = [];
+
+  // Earnings for active ticker (prepend)
+  if (earn && earn.next_earnings){
+    rows.push({
+      date: earn.next_earnings,
+      event: `${State.ticker} EARNINGS`,
+      sub: "Scheduled report",
+      imp: "hi", impText: "★★★"
+    });
+  }
+
+  // Economic events
+  if (Array.isArray(econ)){
+    econ.slice(0, 12).forEach(e => {
+      const impLevel = (e.importance || "medium").toLowerCase();
+      let imp = "lo", impText = "★";
+      if (impLevel === "high"){ imp = "hi"; impText = "★★★"; }
+      else if (impLevel === "medium"){ imp = "md"; impText = "★★"; }
+      rows.push({
+        date: e.date,
+        event: e.event || e.title || "—",
+        sub: e.description || e.period || "",
+        imp, impText
+      });
+    });
+  }
+
+  if (!rows.length){ body.innerHTML = '<div class="empty">No upcoming events</div>'; return; }
+
+  // Sort by date
+  rows.sort((a,b) => new Date(a.date||0) - new Date(b.date||0));
+
+  body.innerHTML = '<div class="cal-list">' + rows.map(r => `
+    <div class="cal-row">
+      <span class="cal-date">${fmtDateShort(r.date)}</span>
+      <div class="cal-event">${r.event}${r.sub ? `<div class="cal-sub">${r.sub}</div>` : ""}</div>
+      <span class="cal-imp ${r.imp}">${r.impText}</span>
+    </div>`).join("") + '</div>';
+}
+
+/* ---------- NEWS ---------- */
+async function loadNews(){
+  const data = await api(`/news?ticker=${State.ticker}&limit=10`);
+  const body = $("newsBody");
+  if (!Array.isArray(data) || !data.length){
+    body.innerHTML = '<div class="empty">No news</div>';
+    return;
+  }
+  body.innerHTML = '<div class="news-list">' + data.map(n => `
+    <div class="news-row" data-href="${n.link||""}">
+      <div class="news-time">${timeAgo(n.published)} AGO</div>
+      <div class="news-title">${(n.title||"").replace(/</g,"&lt;")}</div>
+      <div class="news-src">${n.publisher || ""}</div>
+    </div>`).join("") + '</div>';
+  body.querySelectorAll(".news-row").forEach(el => {
+    const href = el.dataset.href;
+    if (href) el.addEventListener("click", () => window.open(href, "_blank", "noopener"));
+  });
+}
+
+/* ---------- LOAD TICKER (on select) ---------- */
+function loadTicker(t){
+  t = (t||"").trim().toUpperCase();
+  if (!t || t === State.ticker) return;
+  State.ticker = t;
+  // Mark active in watchlist
+  document.querySelectorAll(".wl-item").forEach(el => {
+    el.classList.toggle("active", el.dataset.t === t);
+  });
+  loadQuote();
+  loadChart();
+  loadCalendar();
+  loadNews();
+}
+
+/* ---------- COMMAND BAR ---------- */
+function executeCommand(){
+  const inp = $("cmdInput");
+  const v = (inp.value||"").trim().toUpperCase();
+  if (!v) return;
+  loadTicker(v);
+  inp.value = "";
+  inp.blur();
+}
+
+/* ---------- INITIALIZATION ---------- */
+function init(){
+  State.watchlist = loadWatchlist();
+  renderWatchlist();
+
+  // Period buttons
+  document.querySelectorAll(".period-btn").forEach(b => {
+    b.addEventListener("click", () => {
+      document.querySelectorAll(".period-btn").forEach(x => x.classList.remove("active"));
+      b.classList.add("active");
+      State.period = b.dataset.period;
+      loadChart();
+    });
+  });
+
+  // Movers/sectors tabs
+  document.querySelectorAll(".ms-tab").forEach(b => {
+    b.addEventListener("click", () => {
+      document.querySelectorAll(".ms-tab").forEach(x => x.classList.remove("active"));
+      b.classList.add("active");
+      State.msTab = b.dataset.ms;
+      renderMS();
+    });
+  });
+
+  // Command bar
+  $("goBtn").addEventListener("click", executeCommand);
+  $("cmdInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") executeCommand();
+    else if (e.key === "Escape"){ $("cmdInput").value=""; $("cmdInput").blur(); }
+  });
+
+  // Watchlist add
+  $("wlAddBtn").addEventListener("click", () => {
+    const v = $("wlInput").value;
+    $("wlInput").value = "";
+    addToWatchlist(v);
+  });
+  $("wlInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter"){
+      const v = $("wlInput").value;
+      $("wlInput").value = "";
+      addToWatchlist(v);
+    }
+  });
+  $("wlReset").addEventListener("click", () => {
+    if (confirm("Reset watchlist to default 12 tickers?")){
+      State.watchlist = [...DEFAULT_WATCHLIST];
+      saveWatchlist();
+      renderWatchlist();
+      refreshWatchlistQuotes();
+    }
+  });
+
+  // Global keyboard shortcuts
+  document.addEventListener("keydown", (e) => {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+    if (e.key === "/"){
+      e.preventDefault();
+      $("cmdInput").focus();
+    }
+  });
+
+  // Clock
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // Initial loads
+  loadTape();
+  refreshWatchlistQuotes();
+  loadQuote();
+  loadChart();
+  loadMovers();
+  loadSectors();
+  loadCalendar();
+  loadNews();
+
+  // Refresh schedules
+  setInterval(loadTape, 60 * 1000);
+  setInterval(refreshWatchlistQuotes, 30 * 1000);
+  setInterval(loadQuote, 60 * 1000);
+  setInterval(loadMovers, 2 * 60 * 1000);
+  setInterval(loadSectors, 2 * 60 * 1000);
+  setInterval(loadNews, 5 * 60 * 1000);
+  setInterval(loadCalendar, 60 * 60 * 1000);
+  // Chart refreshes on period change and ticker change only
+}
+
+document.addEventListener("DOMContentLoaded", init);
+</script>
+</body>
+</html>
