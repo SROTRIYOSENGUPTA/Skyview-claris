@@ -5,6 +5,7 @@ gunicorn>=21.2.0
 flask-limiter>=3.5.0
 flask-talisman>=1.1.0
 yfinance>=0.2.36
+requests>=2.31.0
 
 # ─── Multi-Persona Platform (NEW) ───
 # Database
