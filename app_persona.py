@@ -244,6 +244,16 @@ def persona_chat():
         has_persona=has_persona,
         recent_conversations=recent_convos,
     )
+@persona_bp.route("/persona/terminal")
+@login_required
+def persona_terminal():
+    """Render the Bloomberg-style Market Terminal for the logged-in advisor."""
+    db = persona_bp.extensions_db()
+    employee_id = session.get("employee_id")
+    employee = db.query(Employee).filter(Employee.id == employee_id).first()
+    if not employee:
+        return redirect(url_for("persona.persona_login"))
+    return render_template("market_terminal_v4.html", employee=employee)
 @persona_bp.route("/persona/chat/stream", methods=["POST"])
 @login_required
 def persona_chat_stream():
