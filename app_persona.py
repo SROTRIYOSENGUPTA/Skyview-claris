@@ -82,7 +82,7 @@ def init_auth(app: Flask, db_session):
     """Initialize Flask-Login and Azure AD SSO."""
     login_manager = LoginManager()
     login_manager.init_app(app)
-    login_manager.login_view = "persona_login"
+    login_manager.login_view = "persona.persona_login"
     @login_manager.user_loader
     def load_user(user_id):
         db = db_session()
