@@ -253,7 +253,7 @@ def persona_terminal():
     employee = db.query(Employee).filter(Employee.id == employee_id).first()
     if not employee:
         return redirect(url_for("persona.persona_login"))
-    return render_template("market_terminal_v4.html", employee=employee)
+    return render_template("market_terminal.html", employee=employee)
 @persona_bp.route("/persona/chat/stream", methods=["POST"])
 @login_required
 def persona_chat_stream():
