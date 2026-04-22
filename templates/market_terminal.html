@@ -1244,7 +1244,7 @@ async function loadCalendar(){
   // Economic events
   if (Array.isArray(econ)){
     econ.slice(0, 12).forEach(e => {
-      const impLevel = (e.importance || "medium").toLowerCase();
+      const impLevel = String(e.importance || "medium").toLowerCase()
       let imp = "lo", impText = "★";
       if (impLevel === "high"){ imp = "hi"; impText = "★★★"; }
       else if (impLevel === "medium"){ imp = "md"; impText = "★★"; }
