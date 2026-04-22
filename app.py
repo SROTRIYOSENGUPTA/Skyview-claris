@@ -61,11 +61,19 @@ CSP = {
     "script-src": [
         "'self'",
         "https://cdnjs.cloudflare.com",
+        "https://cdn.jsdelivr.net",
         "'unsafe-inline'",           # needed for inline JS in the single-file template
+    ],
+    "script-src-elem": [
+        "'self'",
+        "https://cdnjs.cloudflare.com",
+        "https://cdn.jsdelivr.net",
+        "'unsafe-inline'",
     ],
     "style-src": [
         "'self'",
         "https://fonts.googleapis.com",
+        "https://cdn.jsdelivr.net",
         "'unsafe-inline'",
     ],
     "font-src": [
