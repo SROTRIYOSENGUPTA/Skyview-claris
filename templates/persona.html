@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claris — {{ employee.full_name if employee else 'Advisor' }}</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #161a22;
+    --panel-2: #1d2330;
+    --border: #262c3a;
+    --text: #e6e8ee;
+    --muted: #8a93a6;
+    --accent: #ff6a00;
+    --accent-soft: #ff6a0033;
+    --blue: #0078d4;
+    --blue-hover: #106ebe;
+    --green: #107c10;
+    --green-hover: #0e6e0e;
+    --danger: #e5484d;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif; }
+  .layout { display: flex; height: 100vh; }
+
+  /* Sidebar */
+  .sidebar {
+    width: 280px; min-width: 280px; background: var(--panel);
+    border-right: 1px solid var(--border); display: flex; flex-direction: column;
+  }
+  .brand {
+    padding: 20px 16px 14px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .brand-logo {
+    width: 34px; height: 34px; border-radius: 8px; background: linear-gradient(135deg, #ff6a00 0%, #ff8e00 100%);
+    display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 15px;
+  }
+  .brand-name { font-weight: 600; font-size: 15px; letter-spacing: 0.2px; }
+  .brand-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+  .user-card {
+    margin: 14px 16px 6px; padding: 12px 14px; background: var(--panel-2);
+    border: 1px solid var(--border); border-radius: 10px;
+  }
+  .user-name { font-size: 13px; font-weight: 600; }
+  .user-email { font-size: 11px; color: var(--muted); margin-top: 2px; word-break: break-all; }
+
+  /* Sidebar buttons */
+  .sidebar-btn {
+    display: flex; align-items: center; gap: 10px;
+    margin: 8px 16px; padding: 10px 14px;
+    border-radius: 8px; font-size: 13px; font-weight: 500;
+    text-decoration: none; transition: all 0.15s; cursor: pointer;
+  }
+  .terminal-btn {
+    background: #000; color: var(--accent); border: 1px solid var(--accent);
+    font-family: "JetBrains Mono", ui-monospace, Menlo, monospace;
+    justify-content: space-between;
+  }
+  .terminal-btn:hover { box-shadow: 0 0 0 3px var(--accent-soft); }
+  .terminal-btn .arrow { opacity: 0.7; }
+
+  .m365-btn { background: var(--blue); color: #fff; }
+  .m365-btn:hover { background: var(--blue-hover); }
+  .m365-btn.connected { background: var(--green); }
+  .m365-btn.connected:hover { background: var(--green-hover); }
+
+  .section-label {
+    margin: 16px 16px 6px; font-size: 10px; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--muted);
+  }
+  .conversation-list { list-style: none; margin: 0; padding: 0 8px; overflow-y: auto; flex: 1; }
+  .conversation-list li a {
+    display: block; padding: 8px 10px; border-radius: 6px; color: var(--text);
+    font-size: 12px; text-decoration: none; margin-bottom: 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .conversation-list li a:hover { background: var(--panel-2); }
+
+  .sidebar-footer {
+    padding: 12px 16px; border-top: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 12px; color: var(--muted);
+  }
+  .sidebar-footer a { color: var(--muted); text-decoration: none; }
+  .sidebar-footer a:hover { color: var(--text); }
+
+  /* Main */
+  .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .topbar {
+    padding: 14px 24px; border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--panel);
+  }
+  .topbar-title { font-size: 14px; font-weight: 600; }
+  .topbar-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .topbar-right { display: flex; gap: 10px; align-items: center; font-size: 12px; color: var(--muted); }
+
+  .chat { flex: 1; overflow-y: auto; padding: 24px; }
+  .welcome {
+    max-width: 720px; margin: 40px auto; text-align: center;
+  }
+  .welcome h1 { font-size: 26px; font-weight: 600; margin-bottom: 6px; }
+  .welcome p { color: var(--muted); font-size: 14px; }
+  .quick-tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 24px; max-width: 560px; margin-left: auto; margin-right: auto; }
+  .tile {
+    padding: 16px; border-radius: 10px; background: var(--panel);
+    border: 1px solid var(--border); text-align: left; cursor: pointer;
+    transition: border 0.15s, background 0.15s; text-decoration: none; color: var(--text);
+    display: block;
+  }
+  .tile:hover { border-color: var(--accent); background: var(--panel-2); }
+  .tile-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .tile-desc { font-size: 11px; color: var(--muted); }
+  .tile.terminal-tile { background: #000; border-color: var(--accent); }
+  .tile.terminal-tile .tile-title { color: var(--accent); font-family: "JetBrains Mono", ui-monospace, monospace; }
+
+  .messages { max-width: 820px; margin: 0 auto; }
+  .message { margin-bottom: 18px; }
+  .message-role { font-size: 11px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.6px; }
+  .message.user .message-body { background: var(--panel); border: 1px solid var(--border); padding: 12px 14px; border-radius: 10px; }
+  .message.assistant .message-body { padding: 4px 0; white-space: pre-wrap; line-height: 1.55; font-size: 14px; }
+  .tool-chip {
+    display: inline-block; padding: 2px 8px; background: var(--panel-2);
+    border: 1px solid var(--border); border-radius: 999px; font-size: 10px;
+    color: var(--muted); margin: 2px 4px 2px 0; font-family: ui-monospace, monospace;
+  }
+
+  /* Composer */
+  .composer {
+    padding: 16px 24px 22px; border-top: 1px solid var(--border); background: var(--panel);
+  }
+  .composer-inner { max-width: 820px; margin: 0 auto; display: flex; gap: 10px; align-items: flex-end; }
+  .composer textarea {
+    flex: 1; background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; font-size: 14px; font-family: inherit;
+    resize: none; min-height: 48px; max-height: 200px; outline: none;
+  }
+  .composer textarea:focus { border-color: var(--accent); }
+  .composer button {
+    background: var(--accent); color: #0b0d12; border: none; border-radius: 10px;
+    padding: 12px 18px; font-weight: 600; font-size: 13px; cursor: pointer;
+  }
+  .composer button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .escalation-banner {
+    max-width: 820px; margin: 0 auto 12px; padding: 10px 14px;
+    background: #3a1f1f; border: 1px solid var(--danger); border-radius: 8px;
+    font-size: 12px; color: #ffc9c9;
+  }
+
+  @media (max-width: 800px) {
+    .sidebar { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-logo">C</div>
+      <div>
+        <div class="brand-name">Claris</div>
+        <div class="brand-sub">SkyView Advisors</div>
+      </div>
+    </div>
+
+    {% if employee %}
+    <div class="user-card">
+      <div class="user-name">{{ employee.full_name }}</div>
+      <div class="user-email">{{ employee.email }}</div>
+    </div>
+    {% endif %}
+
+    <!-- Market Terminal -->
+    <a href="/persona/terminal" class="sidebar-btn terminal-btn">
+      <span style="display:flex;align-items:center;gap:8px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="4" width="18" height="16" rx="2"/>
+          <path d="M7 9h4M7 13h8M7 17h6"/>
+        </svg>
+        Market Terminal
+      </span>
+      <svg class="arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+    </a>
+
+    <!-- Microsoft 365 connect -->
+    <a href="/auth/microsoft/start" id="m365-connect-btn" class="sidebar-btn m365-btn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z"/>
+      </svg>
+      <span id="m365-label">Connect Microsoft 365</span>
+    </a>
+
+    <div class="section-label">Recent</div>
+    <ul class="conversation-list">
+      {% if recent_conversations %}
+        {% for c in recent_conversations %}
+          <li><a href="#" data-conv-id="{{ c.id }}">{{ c.title or 'Untitled' }}</a></li>
+        {% endfor %}
+      {% else %}
+        <li style="padding: 8px 10px; font-size: 12px; color: var(--muted);">No conversations yet</li>
+      {% endif %}
+    </ul>
+
+    <div class="sidebar-footer">
+      <span>v1.0</span>
+      <a href="/persona/logout">Sign out</a>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">
+          {% if persona %}{{ persona.display_name }}{% else %}Claris Advisor{% endif %}
+        </div>
+        <div class="topbar-sub">
+          {% if has_persona %}
+            Personalised AI advisor for {{ employee.full_name if employee else 'you' }}
+          {% else %}
+            Default advisor mode — no persona configured
+          {% endif %}
+        </div>
+      </div>
+      <div class="topbar-right">
+        <span id="status-indicator">Ready</span>
+      </div>
+    </div>
+
+    <div class="chat" id="chat">
+      <div class="welcome" id="welcome">
+        <h1>How can I help, {{ employee.full_name.split(' ')[0] if employee else 'there' }}?</h1>
+        <p>Ask a portfolio question, search your email and calendar, or jump into the Market Terminal.</p>
+
+        <div class="quick-tiles">
+          <a href="/persona/terminal" class="tile terminal-tile">
+            <div class="tile-title">&gt; Open Market Terminal</div>
+            <div class="tile-desc">Live quotes, watchlist, Morningstar</div>
+          </a>
+          <div class="tile" onclick="seedPrompt('What meetings do I have this week?')">
+            <div class="tile-title">This week's calendar</div>
+            <div class="tile-desc">Pull meetings from Outlook</div>
+          </div>
+          <div class="tile" onclick="seedPrompt('Search my recent emails about client portfolio reviews.')">
+            <div class="tile-title">Search my inbox</div>
+            <div class="tile-desc">Find a recent email</div>
+          </div>
+          <div class="tile" onclick="seedPrompt('Find the most recent investment policy statement in SharePoint.')">
+            <div class="tile-title">SharePoint lookup</div>
+            <div class="tile-desc">Search firm documents</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="messages" id="messages"></div>
+    </div>
+
+    <div class="composer">
+      <div class="composer-inner">
+        <textarea id="input" rows="1" placeholder="Ask Claris..."></textarea>
+        <button id="send" onclick="sendMessage()">Send</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  // ─── State ──────────────────────────────────────────────────────────────
+  let conversationId = null;
+  let streaming = false;
+  const messagesEl = document.getElementById('messages');
+  const welcomeEl = document.getElementById('welcome');
+  const inputEl = document.getElementById('input');
+  const sendBtn = document.getElementById('send');
+  const statusEl = document.getElementById('status-indicator');
+
+  // ─── Textarea auto-grow ─────────────────────────────────────────────────
+  inputEl.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 200) + 'px';
+  });
+  inputEl.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  // ─── Seed prompt from quick tiles ───────────────────────────────────────
+  function seedPrompt(text) {
+    inputEl.value = text;
+    inputEl.focus();
+    inputEl.dispatchEvent(new Event('input'));
+  }
+
+  // ─── Render a message ───────────────────────────────────────────────────
+  function appendMessage(role, text) {
+    const wrap = document.createElement('div');
+    wrap.className = 'message ' + role;
+    wrap.innerHTML = '<div class="message-role">' + (role === 'user' ? 'You' : 'Claris') + '</div><div class="message-body"></div>';
+    wrap.querySelector('.message-body').textContent = text;
+    messagesEl.appendChild(wrap);
+    welcomeEl.style.display = 'none';
+    wrap.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    return wrap.querySelector('.message-body');
+  }
+
+  // ─── Send message (SSE) ─────────────────────────────────────────────────
+  async function sendMessage() {
+    if (streaming) return;
+    const msg = inputEl.value.trim();
+    if (!msg) return;
+
+    appendMessage('user', msg);
+    inputEl.value = '';
+    inputEl.style.height = 'auto';
+    streaming = true;
+    sendBtn.disabled = true;
+    statusEl.textContent = 'Thinking...';
+
+    const assistantBody = appendMessage('assistant', '');
+    let buf = '';
+
+    try {
+      const resp = await fetch('/persona/chat/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, conversation_id: conversationId })
+      });
+
+      if (!resp.ok) {
+        assistantBody.textContent = '[Error: ' + resp.status + ']';
+        return;
+      }
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (data.token) {
+              assistantBody.textContent += data.token;
+            } else if (data.tool) {
+              statusEl.textContent = 'Using ' + data.tool + '...';
+            } else if (data.escalation) {
+              const banner = document.createElement('div');
+              banner.className = 'escalation-banner';
+              banner.textContent = 'This looks like it needs a human advisor. Flagging for escalation.';
+              messagesEl.insertBefore(banner, assistantBody.parentElement);
+            } else if (data.error) {
+              assistantBody.textContent = assistantBody.textContent || '[Error: ' + data.error + ']';
+            } else if (data.done) {
+              statusEl.textContent = 'Ready';
+            }
+          } catch (_) { /* ignore */ }
+        }
+      }
+    } catch (err) {
+      assistantBody.textContent = '[Network error: ' + err.message + ']';
+    } finally {
+      streaming = false;
+      sendBtn.disabled = false;
+      statusEl.textContent = 'Ready';
+    }
+  }
+
+  // ─── Microsoft 365 connection status ────────────────────────────────────
+  fetch('/auth/microsoft/status')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      const btn = document.getElementById('m365-connect-btn');
+      const lbl = document.getElementById('m365-label');
+      if (!btn || !lbl) return;
+      if (d && d.connected) {
+        btn.classList.add('connected');
+        lbl.textContent = 'M365: ' + (d.display_name || d.upn || 'Connected');
+        btn.href = '#';
+        btn.onclick = function(e) {
+          e.preventDefault();
+          if (confirm('Disconnect Microsoft 365?')) {
+            fetch('/auth/microsoft/disconnect', { method: 'POST' })
+              .then(function() { location.reload(); });
+          }
+        };
+      }
+    })
+    .catch(function() { /* silent */ });
+
+  // Auto-open the first query when ?msgraph=connected is set
+  if (new URLSearchParams(location.search).get('msgraph') === 'connected') {
+    statusEl.textContent = 'Microsoft 365 connected';
+    setTimeout(function() { statusEl.textContent = 'Ready'; }, 3000);
+  }
+</script>
+</body>
+</html>
